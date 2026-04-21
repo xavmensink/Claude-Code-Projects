@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'; // v1.0.1
 import { useNavigate } from 'react-router-dom';
 import { WorkoutTemplate, WorkoutSession } from '../types';
 import { getTemplates, getHistory } from '../storage/storage';
