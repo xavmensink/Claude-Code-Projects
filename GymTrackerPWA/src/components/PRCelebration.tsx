@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { PersonalRecord } from '../types';
 
 interface Props {
@@ -10,6 +10,11 @@ interface Props {
 export default function PRCelebration({ prs, unit, onDone }: Props) {
   const [fading, setFading] = useState(false);
   const pr = prs[0];
+
+  const dismiss = useCallback(() => {
+    setFading(true);
+    setTimeout(onDone, 400);
+  }, [onDone]);
 
   useEffect(() => {
     const fadeTimer = setTimeout(() => setFading(true), 1700);
@@ -24,6 +29,22 @@ export default function PRCelebration({ prs, unit, onDone }: Props) {
       background: 'rgba(0,0,0,0.88)',
       animation: fading ? 'prFadeOut 0.4s ease forwards' : 'prFadeIn 0.25s ease',
     }}>
+      {/* Close button */}
+      <button
+        onClick={dismiss}
+        style={{
+          position: 'absolute', top: 20, right: 20,
+          width: 36, height: 36, borderRadius: 18,
+          background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
+          color: '#fff', fontSize: 18, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          lineHeight: 1,
+        }}
+        aria-label="Dismiss"
+      >
+        ✕
+      </button>
+
       <div style={{
         textAlign: 'center',
         padding: '40px 32px',
