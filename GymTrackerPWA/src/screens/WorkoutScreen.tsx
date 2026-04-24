@@ -142,7 +142,7 @@ export default function WorkoutScreen() {
               </div>
 
               {/* Column headers */}
-              <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 1fr 1fr 44px 38px', gap: 4, marginBottom: 4 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 1fr 44px 38px', gap: 4, marginBottom: 4 }}>
                 {['SET','PREV',unit.toUpperCase(),'REPS','RPE','✓'].map(h => (
                   <div key={h} style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 700, textAlign: 'center' }}>{h}</div>
                 ))}
@@ -152,8 +152,21 @@ export default function WorkoutScreen() {
                 const prev = history[0]?.exercises.find(e => e.exerciseId === ex.exerciseId)?.sets[setIdx];
                 const prevText = prev?.completed ? `${prev.weight}×${prev.reps}` : '—';
                 return (
-                  <div key={set.id} style={{ display: 'grid', gridTemplateColumns: '28px 1fr 1fr 1fr 44px 38px', gap: 4, marginBottom: 6, opacity: set.completed ? 0.55 : 1 }}>
-                    <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{setIdx + 1}</div>
+                  <div key={set.id} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 1fr 44px 38px', gap: 4, marginBottom: 6, opacity: set.completed ? 0.55 : 1 }}>
+                    {/* Set number — tap to delete */}
+                    <button
+                      onClick={() => removeSet(exIdx, setIdx)}
+                      title="Delete set"
+                      style={{
+                        width: 28, height: 34, borderRadius: 6,
+                        border: '1px solid var(--border)',
+                        background: 'none', color: 'var(--text-secondary)',
+                        fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      {setIdx + 1}
+                    </button>
                     <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{prevText}</div>
                     <input type="number" className="input"
                       value={set.weight > 0 ? set.weight : ''}
