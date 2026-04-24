@@ -49,6 +49,16 @@ export interface WorkoutTemplate {
   exercises: TemplateExercise[];
 }
 
+export interface PersonalRecord {
+  id: string;
+  exerciseId: string;
+  exerciseName: string;
+  weight: number;
+  reps: number;
+  achievedAt: number;
+  prType: 'weight' | 'reps';
+}
+
 export interface AppSettings {
   restTimerDuration: number;
   weightUnit: 'kg' | 'lbs';

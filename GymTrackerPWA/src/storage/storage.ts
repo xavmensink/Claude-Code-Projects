@@ -1,4 +1,5 @@
-import { Exercise, WorkoutTemplate, WorkoutSession, AppSettings, WeekSchedule } from '../types';
+import { Exercise, WorkoutTemplate, WorkoutSession, AppSettings, WeekSchedule, PersonalRecord } from '../types';
+import { generateId } from '../utils/helpers';
 
 const KEYS = {
   EXERCISES: 'gt_exercises',
@@ -7,6 +8,7 @@ const KEYS = {
   ACTIVE: 'gt_active',
   SETTINGS: 'gt_settings',
   SCHEDULE: 'gt_schedule',
+  PERSONAL_RECORDS: 'gt_prs',
 };
 
 function get<T>(key: string): T | null {
@@ -115,6 +117,53 @@ export function clearScheduledDay(day: 0|1|2|3|4|5|6): void {
   const schedule = getSchedule();
   delete schedule[day];
   saveSchedule(schedule);
+}
+
+// ─── Personal Records ─────────────────────────────────────────────────────────
+
+export function getPRs(): PersonalRecord[] {
+  return get<PersonalRecord[]>(KEYS.PERSONAL_RECORDS) ?? [];
+}
+
+export function savePRs(prs: PersonalRecord[]): void {
+  set(KEYS.PERSONAL_RECORDS, prs);
+}
+
+export function checkForNewPRs(
+  exerciseId: string,
+  exerciseName: string,
+  weight: number,
+  reps: number,
+): PersonalRecord[] {
+  if (!weight || !reps) return [];
+  const existing = getPRs().filter(p => p.exerciseId === exerciseId);
+  const newPRs: PersonalRecord[] = [];
+
+  const bestWeight = existing
+    .filter(p => p.prType === 'weight')
+    .reduce((max, p) => Math.max(max, p.weight), 0);
+  if (weight > bestWeight) {
+    newPRs.push({ id: generateId(), exerciseId, exerciseName, weight, reps, achievedAt: Date.now(), prType: 'weight' });
+  }
+
+  const bestRepsAtWeight = existing
+    .filter(p => p.prType === 'reps' && p.weight === weight)
+    .reduce((max, p) => Math.max(max, p.reps), 0);
+  if (reps > bestRepsAtWeight) {
+    newPRs.push({ id: generateId(), exerciseId, exerciseName, weight, reps, achievedAt: Date.now(), prType: 'reps' });
+  }
+
+  if (newPRs.length > 0) {
+    savePRs([...getPRs(), ...newPRs]);
+  }
+  return newPRs;
+}
+
+export function getExercisePRSummary(exerciseId: string): { weightPR: PersonalRecord | null; repsPR: PersonalRecord | null } {
+  const prs = getPRs().filter(p => p.exerciseId === exerciseId);
+  const weightPR = prs.filter(p => p.prType === 'weight').sort((a, b) => b.weight - a.weight)[0] ?? null;
+  const repsPR = prs.filter(p => p.prType === 'reps').sort((a, b) => b.reps - a.reps || b.weight - a.weight)[0] ?? null;
+  return { weightPR, repsPR };
 }
 
 // ─── Seed ─────────────────────────────────────────────────────────────────────

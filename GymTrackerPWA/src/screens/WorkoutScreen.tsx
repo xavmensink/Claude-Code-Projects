@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { WorkoutSession, ExerciseLog, SetLog, WorkoutTemplate, Exercise } from '../types';
-import { getHistory, saveSession, getSettings, getExercises } from '../storage/storage';
+import { WorkoutSession, ExerciseLog, SetLog, WorkoutTemplate, Exercise, PersonalRecord } from '../types';
+import { getHistory, saveSession, getSettings, getExercises, checkForNewPRs } from '../storage/storage';
 import { useWorkout } from '../context/WorkoutContext';
 import { getSuggestedWeight } from '../utils/progressiveOverload';
 import { generateId, formatDuration } from '../utils/helpers';
+import PRCelebration from '../components/PRCelebration';
 
 function rpeColor(rpe: number) {
   if (rpe <= 6) return 'var(--success)';
@@ -23,6 +24,8 @@ export default function WorkoutScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [allEx] = useState<Exercise[]>(() => getExercises());
   const [pickerSearch, setPickerSearch] = useState('');
+  const [pendingPRs, setPendingPRs] = useState<PersonalRecord[]>([]);
+  const [prSetIds, setPrSetIds] = useState<Set<string>>(new Set());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Start from template if navigated with state
@@ -83,9 +86,18 @@ export default function WorkoutScreen() {
 
   const toggleDone = (exIdx: number, setIdx: number) => {
     if (!session) return;
-    const nowDone = !session.exercises[exIdx].sets[setIdx].completed;
+    const set = session.exercises[exIdx].sets[setIdx];
+    const nowDone = !set.completed;
     update({ ...session, exercises: session.exercises.map((ex, i) => i !== exIdx ? ex : { ...ex, sets: ex.sets.map((s, si) => si !== setIdx ? s : { ...s, completed: nowDone, timestamp: Date.now() }) }) });
-    if (nowDone) startRestTimer();
+    if (nowDone) {
+      startRestTimer();
+      const ex = session.exercises[exIdx];
+      const newPRs = checkForNewPRs(ex.exerciseId, ex.exerciseName, set.weight, set.reps);
+      if (newPRs.length > 0) {
+        setPrSetIds(prev => new Set([...prev, set.id]));
+        setPendingPRs(newPRs);
+      }
+    }
   };
 
   const removeExercise = (exIdx: number) => {
@@ -152,7 +164,7 @@ export default function WorkoutScreen() {
                 const prev = history[0]?.exercises.find(e => e.exerciseId === ex.exerciseId)?.sets[setIdx];
                 const prevText = prev?.completed ? `${prev.weight}×${prev.reps}` : '—';
                 return (
-                  <div key={set.id} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 1fr 44px 38px', gap: 4, marginBottom: 6, opacity: set.completed ? 0.55 : 1 }}>
+                  <div key={set.id} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 1fr 44px 38px', gap: 4, marginBottom: 6, opacity: set.completed && !prSetIds.has(set.id) ? 0.55 : 1 }}>
                     {/* Set number — tap to delete */}
                     <button
                       onClick={() => removeSet(exIdx, setIdx)}
@@ -190,14 +202,19 @@ export default function WorkoutScreen() {
                       min="1" max="10"
                       style={{ textAlign: 'center', padding: '8px 2px', fontSize: 14, color: set.rpe ? rpeColor(set.rpe) : undefined }}
                     />
-                    <button onClick={() => toggleDone(exIdx, setIdx)}
-                      style={{
-                        width: 34, height: 34, borderRadius: 8, border: `2px solid ${set.completed ? 'var(--success)' : 'var(--border)'}`,
-                        background: set.completed ? 'var(--success)' : 'transparent',
-                        color: '#fff', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                      {set.completed ? '✓' : ''}
-                    </button>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <button onClick={() => toggleDone(exIdx, setIdx)}
+                        style={{
+                          width: 34, height: 34, borderRadius: 8,
+                          border: `2px solid ${prSetIds.has(set.id) ? '#FFD700' : set.completed ? 'var(--success)' : 'var(--border)'}`,
+                          background: prSetIds.has(set.id) ? '#FFD700' : set.completed ? 'var(--success)' : 'transparent',
+                          color: prSetIds.has(set.id) ? '#000' : '#fff',
+                          cursor: 'pointer', fontSize: prSetIds.has(set.id) ? 12 : 16,
+                          fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                        {prSetIds.has(set.id) ? 'PR' : set.completed ? '✓' : ''}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -241,6 +258,14 @@ export default function WorkoutScreen() {
             </div>
           </div>
         </div>
+      )}
+
+      {pendingPRs.length > 0 && (
+        <PRCelebration
+          prs={pendingPRs}
+          unit={unit}
+          onDone={() => setPendingPRs([])}
+        />
       )}
     </div>
   );

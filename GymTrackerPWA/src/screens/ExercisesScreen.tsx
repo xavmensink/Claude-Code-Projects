@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Exercise, MuscleGroup, Equipment } from '../types';
-import { getExercises, addExercise, deleteExercise } from '../storage/storage';
-import { generateId } from '../utils/helpers';
+import { getExercises, addExercise, deleteExercise, getExercisePRSummary } from '../storage/storage';
+import { generateId, formatDate } from '../utils/helpers';
 
 const GROUPS: MuscleGroup[] = ['chest','back','shoulders','biceps','triceps','quads','hamstrings','glutes','calves','abs','forearms'];
 const EQUIP: Equipment[] = ['barbell','dumbbell','cable','machine','bodyweight'];
@@ -19,6 +19,7 @@ export default function ExercisesScreen() {
   const [name, setName] = useState('');
   const [muscle, setMuscle] = useState<MuscleGroup>('chest');
   const [equip, setEquip] = useState<Equipment>('barbell');
+  const [selectedEx, setSelectedEx] = useState<Exercise | null>(null);
 
   const load = () => setExercises(getExercises());
   useEffect(load, []);
@@ -36,6 +37,8 @@ export default function ExercisesScreen() {
   const handleDelete = (ex: Exercise) => {
     if (confirm(`Delete "${ex.name}"?`)) { deleteExercise(ex.id); load(); }
   };
+
+  const prSummary = selectedEx ? getExercisePRSummary(selectedEx.id) : null;
 
   return (
     <div>
@@ -62,12 +65,13 @@ export default function ExercisesScreen() {
         {filtered.length === 0 && <div className="empty-state"><div className="empty-icon">🔍</div><div className="empty-title">No exercises found</div></div>}
 
         {filtered.map(ex => (
-          <div key={ex.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}
+          <div key={ex.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+            onClick={() => setSelectedEx(ex)}
             onContextMenu={e => { e.preventDefault(); handleDelete(ex); }}>
             <div style={{
               background: GROUP_COLOR[ex.muscleGroup] + '22',
               border: `1px solid ${GROUP_COLOR[ex.muscleGroup]}66`,
-              borderRadius: 8, padding: '4px 8px',
+              borderRadius: 8, padding: '4px 8px', flexShrink: 0,
             }}>
               <div style={{ color: GROUP_COLOR[ex.muscleGroup], fontSize: 10, fontWeight: 700 }}>
                 {ex.muscleGroup.charAt(0).toUpperCase() + ex.muscleGroup.slice(1)}
@@ -77,10 +81,101 @@ export default function ExercisesScreen() {
               <div style={{ fontWeight: 600, fontSize: 15 }}>{ex.name}</div>
               <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{EQUIP_ICON[ex.equipment]} {ex.equipment}</div>
             </div>
-            <button onClick={() => handleDelete(ex)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 18, cursor: 'pointer' }}>✕</button>
+            <button
+              onClick={e => { e.stopPropagation(); handleDelete(ex); }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 18, cursor: 'pointer', padding: '0 4px' }}>
+              ✕
+            </button>
           </div>
         ))}
       </div>
+
+      {/* Exercise detail modal */}
+      {selectedEx && (
+        <div className="modal-overlay" onClick={() => setSelectedEx(null)}>
+          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+              <div>
+                <div className="modal-title" style={{ marginBottom: 4 }}>{selectedEx.name}</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+                  {EQUIP_ICON[selectedEx.equipment]} {selectedEx.equipment} &nbsp;·&nbsp;
+                  <span style={{ color: GROUP_COLOR[selectedEx.muscleGroup] }}>
+                    {selectedEx.muscleGroup.charAt(0).toUpperCase() + selectedEx.muscleGroup.slice(1)}
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => setSelectedEx(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 22, cursor: 'pointer' }}>✕</button>
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--border)', marginTop: 16, paddingTop: 16 }}>
+              <div className="section-label" style={{ marginBottom: 12 }}>Personal Records</div>
+
+              {!prSummary?.weightPR && !prSummary?.repsPR ? (
+                <div style={{ color: 'var(--text-secondary)', fontSize: 14, padding: '12px 0', textAlign: 'center' }}>
+                  No PRs yet — log a set to start tracking!
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {prSummary?.weightPR && (
+                    <div style={{
+                      background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.3)',
+                      borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
+                    }}>
+                      <div style={{ fontSize: 28 }}>🏆</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, color: '#FFD700', fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                          Weight PR
+                        </div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: '#FFD700' }}>
+                          {prSummary.weightPR.weight} kg
+                          <span style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,215,0,0.7)', marginLeft: 6 }}>
+                            × {prSummary.weightPR.reps} reps
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {formatDate(prSummary.weightPR.achievedAt)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {prSummary?.repsPR && (
+                    <div style={{
+                      background: 'rgba(76,175,80,0.08)', border: '1px solid rgba(76,175,80,0.3)',
+                      borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
+                    }}>
+                      <div style={{ fontSize: 28 }}>💪</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, color: 'var(--success)', fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                          Reps PR
+                        </div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--success)' }}>
+                          {prSummary.repsPR.reps} reps
+                          <span style={{ fontSize: 14, fontWeight: 500, color: 'rgba(76,175,80,0.7)', marginLeft: 6 }}>
+                            @ {prSummary.repsPR.weight} kg
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {formatDate(prSummary.repsPR.achievedAt)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => handleDelete(selectedEx)}
+              style={{
+                width: '100%', marginTop: 20, padding: 12, background: 'none',
+                border: '1px solid rgba(233,69,96,0.3)', borderRadius: 10,
+                color: 'var(--danger)', cursor: 'pointer', fontSize: 14,
+              }}>
+              Delete Exercise
+            </button>
+          </div>
+        </div>
+      )}
 
       {showAdd && (
         <div className="modal-overlay" onClick={() => setShowAdd(false)}>
