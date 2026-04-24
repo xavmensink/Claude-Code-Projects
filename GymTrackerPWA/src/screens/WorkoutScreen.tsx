@@ -4,7 +4,7 @@ import { WorkoutSession, ExerciseLog, SetLog, WorkoutTemplate, Exercise, Persona
 import { getHistory, saveSession, getSettings, getExercises, checkForNewPRs } from '../storage/storage';
 import { useWorkout } from '../context/WorkoutContext';
 import { getSuggestedWeight } from '../utils/progressiveOverload';
-import { generateId, formatDuration } from '../utils/helpers';
+import { generateId, formatStopwatch } from '../utils/helpers';
 import PRCelebration from '../components/PRCelebration';
 
 function rpeColor(rpe: number) {
@@ -116,7 +116,7 @@ export default function WorkoutScreen() {
     if (!session || !confirm('Finish and save this workout?')) return;
     const done = { ...session, endTime: Date.now() };
     saveSession(done); setWorkout(null); setSession(null);
-    navigate('/history');
+    navigate('/workout/summary', { state: { session: done } });
   };
 
   if (!session) {
@@ -136,7 +136,7 @@ export default function WorkoutScreen() {
       <div className="screen-header" style={{ position: 'sticky', top: 0 }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 17 }}>{session.name}</div>
-          <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{formatDuration(elapsed)}</div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 13, fontVariantNumeric: 'tabular-nums', letterSpacing: 0.5 }}>{formatStopwatch(elapsed)}</div>
         </div>
         <button onClick={finish} style={{ background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 8, padding: '8px 18px', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
           Finish

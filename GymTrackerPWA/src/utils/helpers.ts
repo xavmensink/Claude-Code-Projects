@@ -11,6 +11,16 @@ export function formatDuration(seconds: number): string {
   return `${s}s`;
 }
 
+// HH:MM:SS — used for the live stopwatch in the active workout header
+export function formatStopwatch(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  const mm = String(m).padStart(2, '0');
+  const ss = String(s).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
 export function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString('en-GB', {
     weekday: 'short', day: 'numeric', month: 'short',

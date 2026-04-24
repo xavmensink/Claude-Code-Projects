@@ -7,6 +7,7 @@ import HomeScreen from './screens/HomeScreen';
 import ExercisesScreen from './screens/ExercisesScreen';
 import TemplatesScreen from './screens/TemplatesScreen';
 import WorkoutScreen from './screens/WorkoutScreen';
+import SummaryScreen from './screens/SummaryScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import VolumeScreen from './screens/VolumeScreen';
 import SettingsScreen from './screens/SettingsScreen';
@@ -20,8 +21,9 @@ function AppInner() {
           <Route path="/"          element={<HomeScreen />} />
           <Route path="/exercises" element={<ExercisesScreen />} />
           <Route path="/templates" element={<TemplatesScreen />} />
-          <Route path="/workout"   element={<WorkoutScreen />} />
-          <Route path="/history"   element={<HistoryScreen />} />
+          <Route path="/workout"          element={<WorkoutScreen />} />
+          <Route path="/workout/summary" element={<SummaryScreen />} />
+          <Route path="/history"         element={<HistoryScreen />} />
           <Route path="/volume"    element={<VolumeScreen />} />
           <Route path="/settings"  element={<SettingsScreen />} />
         </Routes>
