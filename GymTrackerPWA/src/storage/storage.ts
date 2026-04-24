@@ -268,3 +268,76 @@ export function migrateExercises(): void {
   const toAdd = fullSeed.filter(e => missing.includes(e.id));
   saveExercises([...current, ...toAdd]);
 }
+
+// ─── Jeff Nippard Fundamentals Templates ─────────────────────────────────────
+
+export function seedJeffNippardTemplates(): void {
+  const FLAG = 'gt_seeded_jn_fundamentals_v1';
+  if (localStorage.getItem(FLAG)) return;
+
+  const templates: WorkoutTemplate[] = [
+    {
+      id: 'jn_lower1',
+      name: 'Lower Body #1',
+      description: "Jeff Nippard — Fundamentals Program",
+      exercises: [
+        { exerciseId: 'e60', exerciseName: 'Squat',                  targetSets: 3, targetReps: 6  },
+        { exerciseId: 'e70', exerciseName: 'Romanian Deadlift',       targetSets: 3, targetReps: 10 },
+        { exerciseId: 'e76', exerciseName: 'Hip Thrust',              targetSets: 3, targetReps: 12 },
+        { exerciseId: 'e64', exerciseName: 'Leg Extension',           targetSets: 3, targetReps: 12 },
+        { exerciseId: 'e72', exerciseName: 'Lying Leg Curl',          targetSets: 3, targetReps: 12 },
+        { exerciseId: 'e79', exerciseName: 'Abduction Machine',       targetSets: 3, targetReps: 6  },
+        { exerciseId: 'e88', exerciseName: 'Crunch',                  targetSets: 3, targetReps: 12 },
+      ],
+    },
+    {
+      id: 'jn_upper1',
+      name: 'Upper Body #1',
+      description: "Jeff Nippard — Fundamentals Program",
+      exercises: [
+        { exerciseId: 'e1',  exerciseName: 'Barbell Bench Press',      targetSets: 3, targetReps: 5  },
+        { exerciseId: 'e23', exerciseName: 'Lat Pulldown',             targetSets: 3, targetReps: 10 },
+        { exerciseId: 'e28', exerciseName: 'Military Press',           targetSets: 3, targetReps: 10 },
+        { exerciseId: 'e27', exerciseName: 'Chest-Supported T-Bar Row',targetSets: 3, targetReps: 12 },
+        { exerciseId: 'e8',  exerciseName: 'Cable Fly',                targetSets: 3, targetReps: 12 },
+        { exerciseId: 'e43', exerciseName: 'Dumbbell Curl (Supinated)',targetSets: 3, targetReps: 10 },
+        { exerciseId: 'e56', exerciseName: 'Single-Arm Rope Tricep Ext',targetSets: 3, targetReps: 12 },
+      ],
+    },
+    {
+      id: 'jn_lower2',
+      name: 'Lower Body #2',
+      description: "Jeff Nippard — Fundamentals Program",
+      exercises: [
+        { exerciseId: 'e14', exerciseName: 'Deadlift',                targetSets: 3, targetReps: 8  },
+        { exerciseId: 'e66', exerciseName: 'DB Walking Lunge',         targetSets: 3, targetReps: 10 },
+        { exerciseId: 'e64', exerciseName: 'Single-Leg Leg Extension', targetSets: 3, targetReps: 15 },
+        { exerciseId: 'e72', exerciseName: 'Single-Leg Leg Curl',      targetSets: 3, targetReps: 15 },
+        { exerciseId: 'e79', exerciseName: 'Abduction Machine',        targetSets: 3, targetReps: 15 },
+        { exerciseId: 'e82', exerciseName: 'Standing Calf Raise',      targetSets: 3, targetReps: 12 },
+        { exerciseId: 'e87', exerciseName: 'Plank (20 sec)',           targetSets: 3, targetReps: 20 },
+      ],
+    },
+    {
+      id: 'jn_upper2',
+      name: 'Upper Body #2',
+      description: "Jeff Nippard — Fundamentals Program",
+      exercises: [
+        { exerciseId: 'e5',  exerciseName: 'Dumbbell Incline Press',         targetSets: 3, targetReps: 8  },
+        { exerciseId: 'e23', exerciseName: 'Reverse Grip Lat Pulldown',      targetSets: 3, targetReps: 8  },
+        { exerciseId: 'e58', exerciseName: 'Assisted Dip',                   targetSets: 3, targetReps: 10 },
+        { exerciseId: 'e17', exerciseName: 'Barbell Bent Over Row',          targetSets: 3, targetReps: 12 },
+        { exerciseId: 'e31', exerciseName: 'Dumbbell Lateral Raise',         targetSets: 3, targetReps: 15 },
+        { exerciseId: 'e36', exerciseName: 'Seated Face Pull',               targetSets: 3, targetReps: 15 },
+        { exerciseId: 'e44', exerciseName: 'Hammer Curl',                    targetSets: 3, targetReps: 8  },
+      ],
+    },
+  ];
+
+  const existing = getTemplates();
+  // Don't add if already present (in case of partial state)
+  const existingIds = new Set(existing.map(t => t.id));
+  const toAdd = templates.filter(t => !existingIds.has(t.id));
+  set(KEYS.TEMPLATES, [...existing, ...toAdd]);
+  localStorage.setItem(FLAG, '1');
+}
