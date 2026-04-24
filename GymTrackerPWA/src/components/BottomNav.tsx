@@ -7,6 +7,7 @@ const TABS = [
   { path: '/templates', label: 'Templates', icon: '📁' },
   { path: '/workout',   label: 'Workout',   icon: '🏋️' },
   { path: '/history',   label: 'History',   icon: '📊' },
+  { path: '/volume',    label: 'Volume',    icon: '📈' },
   { path: '/settings',  label: 'Settings',  icon: '⚙️' },
 ];
 
@@ -53,7 +54,7 @@ export default function BottomNav() {
           >
             <span style={{ fontSize: 20, lineHeight: 1 }}>{tab.icon}</span>
             <span style={{
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: active ? 700 : 400,
               color: active ? 'var(--accent)' : 'var(--text-secondary)',
             }}>

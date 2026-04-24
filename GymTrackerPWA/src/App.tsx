@@ -8,6 +8,7 @@ import ExercisesScreen from './screens/ExercisesScreen';
 import TemplatesScreen from './screens/TemplatesScreen';
 import WorkoutScreen from './screens/WorkoutScreen';
 import HistoryScreen from './screens/HistoryScreen';
+import VolumeScreen from './screens/VolumeScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import { seedIfEmpty, migrateExercises, seedJeffNippardTemplates } from './storage/storage';
 
@@ -21,6 +22,7 @@ function AppInner() {
           <Route path="/templates" element={<TemplatesScreen />} />
           <Route path="/workout"   element={<WorkoutScreen />} />
           <Route path="/history"   element={<HistoryScreen />} />
+          <Route path="/volume"    element={<VolumeScreen />} />
           <Route path="/settings"  element={<SettingsScreen />} />
         </Routes>
       </div>
