@@ -53,3 +53,11 @@ export interface AppSettings {
   restTimerDuration: number;
   weightUnit: 'kg' | 'lbs';
 }
+
+export interface ScheduledDay {
+  templateId: string;
+  templateName: string;
+}
+
+// Keys 0–6 map to Sun–Sat (JS Date.getDay())
+export type WeekSchedule = Partial<Record<0|1|2|3|4|5|6, ScheduledDay>>;

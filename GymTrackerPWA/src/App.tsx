@@ -9,7 +9,7 @@ import TemplatesScreen from './screens/TemplatesScreen';
 import WorkoutScreen from './screens/WorkoutScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import SettingsScreen from './screens/SettingsScreen';
-import { seedIfEmpty } from './storage/storage';
+import { seedIfEmpty, migrateExercises } from './storage/storage';
 
 function AppInner() {
   return (
@@ -31,7 +31,7 @@ function AppInner() {
 }
 
 export default function App() {
-  useEffect(() => { seedIfEmpty(); }, []);
+  useEffect(() => { seedIfEmpty(); migrateExercises(); }, []);
 
   return (
     <HashRouter>
