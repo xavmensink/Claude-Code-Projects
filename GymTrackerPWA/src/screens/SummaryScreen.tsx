@@ -109,7 +109,7 @@ export default function SummaryScreen() {
                     {pr.weight} kg × {pr.reps} reps
                   </div>
                   <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 1 }}>
-                    {pr.prType === 'weight' ? 'New weight PR' : `New reps PR at ${pr.weight} kg`}
+                    New heaviest weight for this exercise 🔥
                   </div>
                 </div>
               </div>

@@ -110,56 +110,30 @@ export default function ExercisesScreen() {
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 16, paddingTop: 16 }}>
               <div className="section-label" style={{ marginBottom: 12 }}>Personal Records</div>
 
-              {!prSummary?.weightPR && !prSummary?.repsPR ? (
+              {!prSummary?.weightPR ? (
                 <div style={{ color: 'var(--text-secondary)', fontSize: 14, padding: '12px 0', textAlign: 'center' }}>
-                  No PRs yet — log a set to start tracking!
+                  No PR yet — log a set to start tracking!
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {prSummary?.weightPR && (
-                    <div style={{
-                      background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.3)',
-                      borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
-                    }}>
-                      <div style={{ fontSize: 28 }}>🏆</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: '#FFD700', fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>
-                          Weight PR
-                        </div>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: '#FFD700' }}>
-                          {prSummary.weightPR.weight} kg
-                          <span style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,215,0,0.7)', marginLeft: 6 }}>
-                            × {prSummary.weightPR.reps} reps
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                          {formatDate(prSummary.weightPR.achievedAt)}
-                        </div>
-                      </div>
+                <div style={{
+                  background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.3)',
+                  borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
+                }}>
+                  <div style={{ fontSize: 28 }}>🏆</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, color: '#FFD700', fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                      Best Weight
                     </div>
-                  )}
-                  {prSummary?.repsPR && (
-                    <div style={{
-                      background: 'rgba(76,175,80,0.08)', border: '1px solid rgba(76,175,80,0.3)',
-                      borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
-                    }}>
-                      <div style={{ fontSize: 28 }}>💪</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: 'var(--success)', fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>
-                          Reps PR
-                        </div>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--success)' }}>
-                          {prSummary.repsPR.reps} reps
-                          <span style={{ fontSize: 14, fontWeight: 500, color: 'rgba(76,175,80,0.7)', marginLeft: 6 }}>
-                            @ {prSummary.repsPR.weight} kg
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                          {formatDate(prSummary.repsPR.achievedAt)}
-                        </div>
-                      </div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: '#FFD700' }}>
+                      {prSummary.weightPR.weight} kg
+                      <span style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,215,0,0.7)', marginLeft: 6 }}>
+                        × {prSummary.weightPR.reps} reps
+                      </span>
                     </div>
-                  )}
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {formatDate(prSummary.weightPR.achievedAt)}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

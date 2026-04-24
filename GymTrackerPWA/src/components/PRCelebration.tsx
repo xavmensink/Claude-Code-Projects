@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PersonalRecord } from '../types';
 
 interface Props {
@@ -11,16 +11,23 @@ export default function PRCelebration({ prs, unit, onDone }: Props) {
   const [fading, setFading] = useState(false);
   const pr = prs[0];
 
-  const dismiss = useCallback(() => {
-    setFading(true);
-    setTimeout(onDone, 400);
-  }, [onDone]);
+  // Always-fresh ref so the effect and dismiss never close over a stale onDone.
+  // (onDone is an inline arrow in WorkoutScreen and gets a new reference every
+  // second due to the elapsed timer re-rendering the parent.)
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
+  // Empty deps: only start the auto-dismiss once on mount, never restart it.
   useEffect(() => {
     const fadeTimer = setTimeout(() => setFading(true), 1700);
-    const doneTimer = setTimeout(onDone, 2100);
+    const doneTimer = setTimeout(() => onDoneRef.current(), 2100);
     return () => { clearTimeout(fadeTimer); clearTimeout(doneTimer); };
-  }, [onDone]);
+  }, []);
+
+  const dismiss = () => {
+    setFading(true);
+    setTimeout(() => onDoneRef.current(), 350);
+  };
 
   return (
     <div style={{
@@ -29,7 +36,6 @@ export default function PRCelebration({ prs, unit, onDone }: Props) {
       background: 'rgba(0,0,0,0.88)',
       animation: fading ? 'prFadeOut 0.4s ease forwards' : 'prFadeIn 0.25s ease',
     }}>
-      {/* Close button */}
       <button
         onClick={dismiss}
         style={{
