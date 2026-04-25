@@ -35,7 +35,12 @@ function AppInner() {
 }
 
 export default function App() {
-  useEffect(() => { seedIfEmpty(); migrateExercises(); seedJeffNippardTemplates(); }, []);
+  useEffect(() => {
+    // Ask iOS/Safari to mark this origin's storage as persistent so it isn't
+    // evicted silently when the service worker updates or storage is low.
+    navigator.storage?.persist?.();
+    seedIfEmpty(); migrateExercises(); seedJeffNippardTemplates();
+  }, []);
 
   return (
     <HashRouter>

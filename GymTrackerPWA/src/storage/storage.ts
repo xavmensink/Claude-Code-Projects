@@ -155,6 +155,40 @@ export function getExercisePRSummary(exerciseId: string): { weightPR: PersonalRe
   return { weightPR };
 }
 
+// ─── Backup / Restore ─────────────────────────────────────────────────────────
+
+export function exportAllData(): void {
+  const payload = {
+    version: 2,
+    exportedAt: Date.now(),
+    exercises:  getExercises(),
+    templates:  getTemplates(),
+    history:    getHistory(),
+    settings:   getSettings(),
+    schedule:   getSchedule(),
+    prs:        getPRs(),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `gymtracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function importAllData(jsonText: string): void {
+  const d = JSON.parse(jsonText);
+  if (d.exercises && Array.isArray(d.exercises))  saveExercises(d.exercises);
+  if (d.templates && Array.isArray(d.templates))  set(KEYS.TEMPLATES,        d.templates);
+  if (d.history   && Array.isArray(d.history))    set(KEYS.HISTORY,          d.history);
+  if (d.settings  && typeof d.settings === 'object') set(KEYS.SETTINGS,      d.settings);
+  if (d.schedule  && typeof d.schedule === 'object') set(KEYS.SCHEDULE,      d.schedule);
+  if (d.prs       && Array.isArray(d.prs))        set(KEYS.PERSONAL_RECORDS, d.prs);
+}
+
 // ─── Seed ─────────────────────────────────────────────────────────────────────
 
 export function seedIfEmpty(): void {
