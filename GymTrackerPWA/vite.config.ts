@@ -7,7 +7,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectRegister: 'auto',
+      devOptions: { enabled: false },
       includeAssets: ['icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'GymTracker',
@@ -19,21 +23,9 @@ export default defineConfig({
         orientation: 'portrait',
         start_url: '/Claude-Code-Projects/',
         icons: [
-          {
-            src: '/Claude-Code-Projects/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png',
-          },
-          {
-            src: '/Claude-Code-Projects/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable',
-          },
+          { src: '/Claude-Code-Projects/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/Claude-Code-Projects/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
       },
     }),
   ],

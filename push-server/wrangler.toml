@@ -1,0 +1,8 @@
+name = "gymtracker-push"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Set these via `wrangler secret put` or in the Cloudflare dashboard:
+#   VAPID_PRIVATE_KEY_JWK   — JSON string (from /generate-keys)
+#   VAPID_PUBLIC_KEY        — Base64url public key (from /generate-keys)
+#   VAPID_SUBJECT           — mailto:you@example.com
