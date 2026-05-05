@@ -4,6 +4,12 @@ import { getSettings, saveSettings, exportAllData, importAllData } from '../stor
 
 const REST_OPTIONS = [60, 90, 120, 180, 240];
 
+function bytesToB64url(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, '-').replace(/_/g, '/').replace(/=/g, '').replace(/\//g, '_');
+}
+
 export default function SettingsScreen() {
   const [settings, setSettings] = useState<AppSettings>(getSettings);
   const [importMsg, setImportMsg] = useState('');
@@ -14,6 +20,10 @@ export default function SettingsScreen() {
   const [vapidKey, setVapidKey]           = useState(() => localStorage.getItem('gt_vapid_pub') ?? '');
   const [pushStatus, setPushStatus]       = useState<{ ok: boolean; msg: string } | null>(null);
   const [pushBusy, setPushBusy]           = useState(false);
+
+  // Generated private key shown for copying into Cloudflare
+  const [privateKeyJwk, setPrivateKeyJwk] = useState('');
+  const [keyGenBusy, setKeyGenBusy]       = useState(false);
 
   const update = (patch: Partial<AppSettings>) => {
     const next = { ...settings, ...patch };
@@ -47,6 +57,43 @@ export default function SettingsScreen() {
     e.target.value = '';
   };
 
+  // Generate a VAPID key pair in the browser using Web Crypto.
+  // Public key is auto-saved; private key is shown once for copying into Cloudflare.
+  const generateKeys = async () => {
+    setKeyGenBusy(true);
+    try {
+      const key = await crypto.subtle.generateKey(
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        true,
+        ['sign', 'verify']
+      );
+      const privateJwk = await crypto.subtle.exportKey('jwk', key.privateKey) as JsonWebKey;
+      const publicJwk  = await crypto.subtle.exportKey('jwk', key.publicKey)  as JsonWebKey;
+
+      // Build uncompressed EC point (0x04 || x || y) and base64url-encode
+      const decode = (s: string) => {
+        const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
+        const raw = atob(b64);
+        return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+      };
+      const x = decode(publicJwk.x!);
+      const y = decode(publicJwk.y!);
+      const uncompressed = new Uint8Array(65);
+      uncompressed[0] = 0x04;
+      uncompressed.set(x, 1);
+      uncompressed.set(y, 33);
+      const pubB64url = bytesToB64url(uncompressed);
+
+      localStorage.setItem('gt_vapid_pub', pubB64url);
+      setVapidKey(pubB64url);
+      setPrivateKeyJwk(JSON.stringify(privateJwk));
+    } catch (err) {
+      alert(`Key generation failed: ${err}`);
+    } finally {
+      setKeyGenBusy(false);
+    }
+  };
+
   const enablePush = async () => {
     if (!pushServerUrl.trim() || !vapidKey.trim()) {
       setPushStatus({ ok: false, msg: 'Enter push server URL and VAPID public key first.' });
@@ -57,7 +104,7 @@ export default function SettingsScreen() {
     try {
       const perm = await Notification.requestPermission();
       if (perm !== 'granted') {
-        setPushStatus({ ok: false, msg: '✗ Notification permission denied. Allow notifications in Safari settings.' });
+        setPushStatus({ ok: false, msg: '✗ Permission denied — allow notifications in Safari Settings.' });
         return;
       }
       if (!('serviceWorker' in navigator)) {
@@ -67,14 +114,12 @@ export default function SettingsScreen() {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        // applicationServerKey accepts a base64url string directly
         applicationServerKey: vapidKey.trim(),
       });
-      const subJson = JSON.stringify(sub.toJSON());
-      localStorage.setItem('gt_push_sub', subJson);
+      localStorage.setItem('gt_push_sub', JSON.stringify(sub.toJSON()));
       localStorage.setItem('gt_push_server', pushServerUrl.trim());
       localStorage.setItem('gt_vapid_pub', vapidKey.trim());
-      setPushStatus({ ok: true, msg: '✓ Push enabled! Start a rest timer to test it — close the app and wait.' });
+      setPushStatus({ ok: true, msg: '✓ Push enabled! Start a rest timer, close the app, and wait for the notification.' });
     } catch (err) {
       setPushStatus({ ok: false, msg: `✗ ${String(err)}` });
     } finally {
@@ -131,7 +176,7 @@ export default function SettingsScreen() {
         <div className="section-label" style={{ marginTop: 20 }}>In-App Notifications</div>
         <div className="card">
           <div style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 12, lineHeight: 1.5 }}>
-            Allow notifications so the app can beep and show a banner when rest ends — even when your phone is locked.
+            Allow notifications so the app can beep and show a banner when rest ends.
           </div>
           <button className="btn-primary" onClick={() => {
             if ('Notification' in window) Notification.requestPermission().then(p => alert(`Permission: ${p}`));
@@ -141,19 +186,89 @@ export default function SettingsScreen() {
           </button>
         </div>
 
-        {/* ── Background Push (Cloudflare Worker) ── */}
-        <div className="section-label" style={{ marginTop: 20 }}>Background Push (app fully closed)</div>
+        {/* ── Background Push ── */}
+        <div className="section-label" style={{ marginTop: 20 }}>Background Push (when app is closed)</div>
         <div className="card">
           <div style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.6, marginBottom: 14 }}>
-            For notifications when the app is completely closed, deploy the included Cloudflare Worker
-            (see <code style={{ fontFamily: 'monospace', fontSize: 12 }}>push-server/README.md</code>),
-            then paste your Worker URL and VAPID public key below.
+            To get notifications when the app is fully closed, you need a free Cloudflare Worker.
+            Follow the 3 steps below — everything can be done on your phone.
             {hasPushSub && (
-              <span style={{ color: 'var(--success)', fontWeight: 600 }}> Push is active.</span>
+              <span style={{ color: 'var(--success)', fontWeight: 600 }}> ✓ Push is active.</span>
             )}
           </div>
 
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 }}>Push Server URL</div>
+          {/* Step 1 */}
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: 'var(--accent)' }}>
+            Step 1 — Generate keys (do this first)
+          </div>
+          <button
+            onClick={generateKeys}
+            disabled={keyGenBusy}
+            style={{
+              width: '100%', padding: 12, marginBottom: 10,
+              border: '1px solid var(--border)', borderRadius: 10,
+              background: 'none', color: 'var(--text-secondary)', fontSize: 14, cursor: 'pointer',
+              opacity: keyGenBusy ? 0.6 : 1,
+            }}
+          >
+            {keyGenBusy ? 'Generating…' : vapidKey ? '↻ Regenerate VAPID Keys' : '🔑 Generate VAPID Keys'}
+          </button>
+
+          {vapidKey && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
+                Public Key (auto-saved ✓)
+              </div>
+              <div style={{
+                padding: '8px 10px', background: 'rgba(255,255,255,0.04)',
+                borderRadius: 8, border: '1px solid var(--border)',
+                fontSize: 11, wordBreak: 'break-all', fontFamily: 'monospace', color: 'var(--text-secondary)',
+              }}>
+                {vapidKey}
+              </div>
+            </div>
+          )}
+
+          {privateKeyJwk && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12, color: '#FFD700', marginBottom: 4, fontWeight: 600 }}>
+                ⚠ Private Key — copy this now, you won't see it again
+              </div>
+              <div
+                onClick={() => { navigator.clipboard?.writeText(privateKeyJwk); alert('Copied!'); }}
+                style={{
+                  padding: '8px 10px', background: 'rgba(255,215,0,0.06)',
+                  borderRadius: 8, border: '1px solid rgba(255,215,0,0.3)',
+                  fontSize: 10, wordBreak: 'break-all', fontFamily: 'monospace', color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                }}
+              >
+                {privateKeyJwk}
+                <div style={{ marginTop: 6, color: '#FFD700', fontSize: 11 }}>Tap to copy</div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2 */}
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: 'var(--accent)' }}>
+            Step 2 — Deploy Cloudflare Worker
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: 14 }}>
+            1. Go to <span style={{ fontFamily: 'monospace' }}>dash.cloudflare.com</span> → sign up free{'\n'}
+            2. Workers &amp; Pages → Create → Create Worker → Deploy{'\n'}
+            3. Edit code → paste contents of <span style={{ fontFamily: 'monospace' }}>push-server/worker.js</span>{'\n'}
+            4. Settings → Variables &amp; Secrets → add:{'\n'}
+            &nbsp;&nbsp;<span style={{ fontFamily: 'monospace', fontSize: 11 }}>VAPID_PRIVATE_KEY_JWK</span> = private key from Step 1{'\n'}
+            &nbsp;&nbsp;<span style={{ fontFamily: 'monospace', fontSize: 11 }}>VAPID_PUBLIC_KEY</span> = public key from Step 1{'\n'}
+            &nbsp;&nbsp;<span style={{ fontFamily: 'monospace', fontSize: 11 }}>VAPID_SUBJECT</span> = mailto:you@example.com{'\n'}
+            5. Save and Deploy — copy your Worker URL (e.g. <span style={{ fontFamily: 'monospace', fontSize: 11 }}>https://xyz.workers.dev</span>)
+          </div>
+
+          {/* Step 3 */}
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: 'var(--accent)' }}>
+            Step 3 — Connect
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 }}>Your Worker URL</div>
           <input
             type="url"
             placeholder="https://your-worker.workers.dev"
@@ -164,20 +279,6 @@ export default function SettingsScreen() {
               border: '1px solid var(--border)', borderRadius: 8,
               background: 'var(--card)', color: 'var(--text)',
               fontSize: 14, boxSizing: 'border-box',
-            }}
-          />
-
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 }}>VAPID Public Key</div>
-          <input
-            type="text"
-            placeholder="Base64url VAPID public key (from /generate-keys)"
-            value={vapidKey}
-            onChange={e => setVapidKey(e.target.value)}
-            style={{
-              width: '100%', padding: '10px 12px', marginBottom: 14,
-              border: '1px solid var(--border)', borderRadius: 8,
-              background: 'var(--card)', color: 'var(--text)',
-              fontSize: 13, boxSizing: 'border-box', wordBreak: 'break-all',
             }}
           />
 
