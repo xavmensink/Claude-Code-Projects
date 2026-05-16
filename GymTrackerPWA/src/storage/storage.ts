@@ -1,4 +1,4 @@
-import { Exercise, WorkoutTemplate, WorkoutSession, AppSettings, WeekSchedule, PersonalRecord } from '../types';
+import { Exercise, MuscleGroup, WorkoutTemplate, WorkoutSession, AppSettings, WeekSchedule, PersonalRecord } from '../types';
 import { generateId } from '../utils/helpers';
 
 const KEYS = {
@@ -311,34 +311,210 @@ export function seedIfEmpty(): void {
   saveExercises(seed);
 }
 
-// Adds any new seed exercises that don't already exist (preserves custom exercises)
+// Adds secondaryMuscleGroups to existing exercises and appends any new seed exercises.
 export function migrateExercises(): void {
   const current = getExercises();
-  const currentIds = new Set(current.map(e => e.id));
-  // Re-use the same seed list by calling seedIfEmpty logic inline
-  const tempKey = '__seed_check__';
-  const hadData = localStorage.getItem(KEYS.EXERCISES);
-  if (!hadData) return; // seedIfEmpty already ran for fresh installs
-  // Temporarily clear so we can get the full seed list
-  localStorage.removeItem(tempKey);
-  // We inline the seed IDs that are new (e36 onwards were added in v1.1)
-  const newIds = ['e36','e37','e38','e39','e40','e41','e42','e43','e44','e45','e46','e47','e48','e49',
-    'e50','e51','e52','e53','e54','e55','e56','e57','e58','e59','e60','e61','e62','e63','e64','e65',
-    'e66','e67','e68','e69','e70','e71','e72','e73','e74','e75','e76','e77','e78','e79','e80','e81',
-    'e82','e83','e84','e85','e86','e87','e88','e89','e90','e91','e92','e93','e94','e95','e96','e97',
-    'e98','e99','e100','e101','e102'];
-  const missing = newIds.filter(id => !currentIds.has(id));
-  if (!missing.length) return;
 
-  // Get full seed by temporarily blanking storage
-  const backup = localStorage.getItem(KEYS.EXERCISES)!;
-  localStorage.removeItem(KEYS.EXERCISES);
-  seedIfEmpty();
-  const fullSeed = getExercises();
-  // Restore user's exercises + append missing seed entries
-  localStorage.setItem(KEYS.EXERCISES, backup);
-  const toAdd = fullSeed.filter(e => missing.includes(e.id));
-  saveExercises([...current, ...toAdd]);
+  // ── A) Secondary muscle group lookup by exercise ID ───────────────────────
+  const secondaryMap: Record<string, MuscleGroup[]> = {
+    e1:   ['triceps','shoulders'],
+    e2:   ['triceps','shoulders'],
+    e3:   ['triceps'],
+    e4:   ['triceps','shoulders'],
+    e5:   ['triceps','shoulders'],
+    e6:   [],
+    e7:   [],
+    e8:   [],
+    e9:   [],
+    e10:  [],
+    e11:  [],
+    e12:  ['triceps','shoulders'],
+    e13:  ['triceps'],
+    e14:  ['hamstrings','glutes','forearms'],
+    e15:  ['glutes','hamstrings','quads'],
+    e16:  ['forearms'],
+    e17:  ['biceps','forearms'],
+    e18:  ['biceps'],
+    e19:  ['biceps'],
+    e20:  ['biceps'],
+    e21:  ['biceps'],
+    e22:  ['biceps'],
+    e23:  ['biceps'],
+    e24:  ['biceps'],
+    e25:  ['biceps'],
+    e26:  [],
+    e27:  ['biceps'],
+    e28:  ['triceps'],
+    e29:  ['triceps'],
+    e30:  ['triceps'],
+    e31:  [],
+    e32:  [],
+    e33:  [],
+    e34:  ['biceps','forearms'],
+    e35:  [],
+    e36:  ['back'],
+    e37:  [],
+    e38:  ['triceps'],
+    e39:  [],
+    e40:  ['forearms'],
+    e41:  ['forearms'],
+    e42:  [],
+    e43:  ['forearms'],
+    e44:  ['forearms'],
+    e45:  [],
+    e46:  [],
+    e47:  [],
+    e48:  ['forearms'],
+    e49:  ['forearms'],
+    e50:  ['chest','shoulders'],
+    e51:  [],
+    e52:  [],
+    e53:  [],
+    e54:  [],
+    e55:  [],
+    e56:  [],
+    e57:  [],
+    e58:  ['chest','shoulders'],
+    e59:  ['chest'],
+    e60:  ['glutes','hamstrings'],
+    e61:  ['glutes'],
+    e62:  ['glutes'],
+    e63:  ['glutes','hamstrings'],
+    e64:  [],
+    e65:  ['glutes'],
+    e66:  ['glutes','hamstrings'],
+    e67:  ['glutes','hamstrings'],
+    e68:  ['glutes'],
+    e69:  ['glutes','hamstrings'],
+    e70:  ['glutes','back'],
+    e71:  ['glutes','back'],
+    e72:  [],
+    e73:  [],
+    e74:  ['glutes'],
+    e75:  ['glutes'],
+    e76:  ['hamstrings'],
+    e77:  ['hamstrings'],
+    e78:  [],
+    e79:  [],
+    e80:  ['quads','hamstrings'],
+    e81:  [],
+    e82:  [],
+    e83:  [],
+    e84:  [],
+    e85:  [],
+    e86:  [],
+    e87:  [],
+    e88:  [],
+    e89:  [],
+    e90:  ['forearms'],
+    e91:  [],
+    e92:  [],
+    e93:  [],
+    e94:  ['shoulders','back'],
+    e95:  [],
+    e96:  [],
+    e97:  [],
+    e98:  [],
+    e99:  [],
+    e100: ['biceps'],
+    e101: ['back','shoulders'],
+    e102: [],
+  };
+
+  // ── B) New exercises to append ────────────────────────────────────────────
+  const newExercises: Exercise[] = [
+    // Chest
+    { id: 'e103', name: 'Machine Chest Press',        muscleGroup: 'chest',      equipment: 'machine',    secondaryMuscleGroups: ['triceps','shoulders'] },
+    { id: 'e104', name: 'Landmine Press',              muscleGroup: 'chest',      equipment: 'barbell',    secondaryMuscleGroups: ['shoulders','triceps'] },
+    { id: 'e105', name: 'Smith Machine Bench',         muscleGroup: 'chest',      equipment: 'machine',    secondaryMuscleGroups: ['triceps','shoulders'] },
+    { id: 'e106', name: 'Chest Squeeze Press',         muscleGroup: 'chest',      equipment: 'dumbbell',   secondaryMuscleGroups: ['triceps'] },
+    // Back
+    { id: 'e107', name: 'Pendlay Row',                 muscleGroup: 'back',       equipment: 'barbell',    secondaryMuscleGroups: ['biceps'] },
+    { id: 'e108', name: 'Inverted Row',                muscleGroup: 'back',       equipment: 'bodyweight', secondaryMuscleGroups: ['biceps'] },
+    { id: 'e109', name: 'Seal Row',                    muscleGroup: 'back',       equipment: 'dumbbell',   secondaryMuscleGroups: ['biceps'] },
+    { id: 'e110', name: 'Machine Row',                 muscleGroup: 'back',       equipment: 'machine',    secondaryMuscleGroups: ['biceps'] },
+    { id: 'e111', name: 'Wide Grip Pulldown',          muscleGroup: 'back',       equipment: 'cable',      secondaryMuscleGroups: ['biceps'] },
+    { id: 'e112', name: 'Close Grip Pulldown',         muscleGroup: 'back',       equipment: 'cable',      secondaryMuscleGroups: ['biceps'] },
+    { id: 'e113', name: 'Good Morning',                muscleGroup: 'back',       equipment: 'barbell',    secondaryMuscleGroups: ['hamstrings','glutes'] },
+    { id: 'e114', name: 'Single Arm Pulldown',         muscleGroup: 'back',       equipment: 'cable',      secondaryMuscleGroups: ['biceps'] },
+    { id: 'e115', name: 'Banded Pull Apart',           muscleGroup: 'back',       equipment: 'bodyweight', secondaryMuscleGroups: [] },
+    // Shoulders
+    { id: 'e116', name: 'Push Press',                  muscleGroup: 'shoulders',  equipment: 'barbell',    secondaryMuscleGroups: ['triceps','quads'] },
+    { id: 'e117', name: 'Cable Front Raise',            muscleGroup: 'shoulders',  equipment: 'cable',      secondaryMuscleGroups: [] },
+    { id: 'e118', name: 'Machine Rear Delt Fly',        muscleGroup: 'shoulders',  equipment: 'machine',    secondaryMuscleGroups: [] },
+    { id: 'e119', name: 'Dumbbell Shrug',               muscleGroup: 'shoulders',  equipment: 'dumbbell',   secondaryMuscleGroups: ['back'] },
+    { id: 'e120', name: 'Barbell Shrug',                muscleGroup: 'shoulders',  equipment: 'barbell',    secondaryMuscleGroups: ['back'] },
+    { id: 'e121', name: 'Plate Front Raise',            muscleGroup: 'shoulders',  equipment: 'dumbbell',   secondaryMuscleGroups: [] },
+    // Biceps
+    { id: 'e122', name: 'EZ-Bar Preacher Curl',         muscleGroup: 'biceps',     equipment: 'barbell',    secondaryMuscleGroups: [] },
+    { id: 'e123', name: 'Machine Curl',                 muscleGroup: 'biceps',     equipment: 'machine',    secondaryMuscleGroups: [] },
+    { id: 'e124', name: 'Bayesian Curl',                muscleGroup: 'biceps',     equipment: 'cable',      secondaryMuscleGroups: [] },
+    { id: 'e125', name: 'Zottman Curl',                 muscleGroup: 'biceps',     equipment: 'dumbbell',   secondaryMuscleGroups: ['forearms'] },
+    { id: 'e126', name: 'Cross Body Hammer Curl',       muscleGroup: 'biceps',     equipment: 'dumbbell',   secondaryMuscleGroups: ['forearms'] },
+    // Triceps
+    { id: 'e127', name: 'JM Press',                     muscleGroup: 'triceps',    equipment: 'barbell',    secondaryMuscleGroups: ['shoulders'] },
+    { id: 'e128', name: 'Tate Press',                   muscleGroup: 'triceps',    equipment: 'dumbbell',   secondaryMuscleGroups: [] },
+    { id: 'e129', name: 'EZ-Bar Overhead Extension',    muscleGroup: 'triceps',    equipment: 'barbell',    secondaryMuscleGroups: [] },
+    { id: 'e130', name: 'Machine Tricep Extension',     muscleGroup: 'triceps',    equipment: 'machine',    secondaryMuscleGroups: [] },
+    { id: 'e131', name: 'Reverse Grip Pushdown',        muscleGroup: 'triceps',    equipment: 'cable',      secondaryMuscleGroups: [] },
+    // Quads
+    { id: 'e132', name: 'Sissy Squat',                  muscleGroup: 'quads',      equipment: 'bodyweight', secondaryMuscleGroups: [] },
+    { id: 'e133', name: 'Reverse Lunge',                muscleGroup: 'quads',      equipment: 'bodyweight', secondaryMuscleGroups: ['glutes'] },
+    { id: 'e134', name: 'Belt Squat',                   muscleGroup: 'quads',      equipment: 'machine',    secondaryMuscleGroups: ['glutes'] },
+    { id: 'e135', name: 'Cyclist Squat',                muscleGroup: 'quads',      equipment: 'barbell',    secondaryMuscleGroups: [] },
+    { id: 'e136', name: 'Smith Machine Squat',          muscleGroup: 'quads',      equipment: 'machine',    secondaryMuscleGroups: ['glutes','hamstrings'] },
+    { id: 'e137', name: 'Barbell Lunge',                muscleGroup: 'quads',      equipment: 'barbell',    secondaryMuscleGroups: ['glutes','hamstrings'] },
+    { id: 'e138', name: 'Wall Sit',                     muscleGroup: 'quads',      equipment: 'bodyweight', secondaryMuscleGroups: [] },
+    // Hamstrings
+    { id: 'e139', name: 'Single Leg RDL',               muscleGroup: 'hamstrings', equipment: 'dumbbell',   secondaryMuscleGroups: ['glutes'] },
+    { id: 'e140', name: 'Cable RDL',                    muscleGroup: 'hamstrings', equipment: 'cable',      secondaryMuscleGroups: ['glutes'] },
+    { id: 'e141', name: 'Dumbbell RDL',                 muscleGroup: 'hamstrings', equipment: 'dumbbell',   secondaryMuscleGroups: ['glutes'] },
+    { id: 'e142', name: 'Swiss Ball Leg Curl',           muscleGroup: 'hamstrings', equipment: 'bodyweight', secondaryMuscleGroups: ['glutes'] },
+    { id: 'e143', name: 'Cable Hamstring Curl',          muscleGroup: 'hamstrings', equipment: 'cable',      secondaryMuscleGroups: [] },
+    // Glutes
+    { id: 'e144', name: 'Single Leg Hip Thrust',        muscleGroup: 'glutes',     equipment: 'bodyweight', secondaryMuscleGroups: ['hamstrings'] },
+    { id: 'e145', name: 'Frog Pump',                    muscleGroup: 'glutes',     equipment: 'bodyweight', secondaryMuscleGroups: [] },
+    { id: 'e146', name: 'Kneeling Squat',               muscleGroup: 'glutes',     equipment: 'barbell',    secondaryMuscleGroups: ['hamstrings'] },
+    { id: 'e147', name: 'X-Band Walk',                  muscleGroup: 'glutes',     equipment: 'bodyweight', secondaryMuscleGroups: [] },
+    { id: 'e148', name: 'Clamshell',                    muscleGroup: 'glutes',     equipment: 'bodyweight', secondaryMuscleGroups: [] },
+    { id: 'e149', name: 'Smith Machine Hip Thrust',     muscleGroup: 'glutes',     equipment: 'machine',    secondaryMuscleGroups: ['hamstrings'] },
+    { id: 'e150', name: 'Dumbbell Hip Thrust',          muscleGroup: 'glutes',     equipment: 'dumbbell',   secondaryMuscleGroups: ['hamstrings'] },
+    // Calves
+    { id: 'e151', name: 'Smith Machine Calf Raise',     muscleGroup: 'calves',     equipment: 'machine',    secondaryMuscleGroups: [] },
+    { id: 'e152', name: 'Cable Calf Raise',             muscleGroup: 'calves',     equipment: 'cable',      secondaryMuscleGroups: [] },
+    // Abs
+    { id: 'e153', name: 'Dragon Flag',                  muscleGroup: 'abs',        equipment: 'bodyweight', secondaryMuscleGroups: [] },
+    { id: 'e154', name: 'Hollow Body Hold',             muscleGroup: 'abs',        equipment: 'bodyweight', secondaryMuscleGroups: [] },
+    { id: 'e155', name: 'V-Up',                         muscleGroup: 'abs',        equipment: 'bodyweight', secondaryMuscleGroups: [] },
+    { id: 'e156', name: 'Oblique Crunch',               muscleGroup: 'abs',        equipment: 'bodyweight', secondaryMuscleGroups: [] },
+    { id: 'e157', name: 'Side Plank',                   muscleGroup: 'abs',        equipment: 'bodyweight', secondaryMuscleGroups: [] },
+    { id: 'e158', name: 'Pallof Press',                 muscleGroup: 'abs',        equipment: 'cable',      secondaryMuscleGroups: [] },
+    { id: 'e159', name: 'Landmine Twist',               muscleGroup: 'abs',        equipment: 'barbell',    secondaryMuscleGroups: ['shoulders'] },
+    { id: 'e160', name: 'Toe Touch',                    muscleGroup: 'abs',        equipment: 'bodyweight', secondaryMuscleGroups: [] },
+    { id: 'e161', name: 'Flutter Kicks',                muscleGroup: 'abs',        equipment: 'bodyweight', secondaryMuscleGroups: [] },
+    { id: 'e162', name: 'Mountain Climber',             muscleGroup: 'abs',        equipment: 'bodyweight', secondaryMuscleGroups: ['shoulders'] },
+    // Forearms
+    { id: 'e163', name: 'Wrist Roller',                 muscleGroup: 'forearms',   equipment: 'bodyweight', secondaryMuscleGroups: [] },
+    { id: 'e164', name: 'Behind-Back Wrist Curl',       muscleGroup: 'forearms',   equipment: 'barbell',    secondaryMuscleGroups: [] },
+    { id: 'e165', name: 'Towel Pull-up',                muscleGroup: 'forearms',   equipment: 'bodyweight', secondaryMuscleGroups: ['back','biceps'] },
+  ];
+
+  // ── Apply secondaryMuscleGroups to existing exercises where missing ────────
+  let changed = false;
+  const updated = current.map(e => {
+    if (e.secondaryMuscleGroups !== undefined) return e;
+    if (!(e.id in secondaryMap)) return e;
+    changed = true;
+    return { ...e, secondaryMuscleGroups: secondaryMap[e.id] };
+  });
+
+  // ── Append new exercises not yet present ──────────────────────────────────
+  const existingIds = new Set(updated.map(e => e.id));
+  const toAdd = newExercises.filter(e => !existingIds.has(e.id));
+  if (toAdd.length > 0) changed = true;
+
+  if (!changed) return;
+  saveExercises([...updated, ...toAdd]);
 }
 
 // ─── Jeff Nippard Fundamentals Templates ─────────────────────────────────────

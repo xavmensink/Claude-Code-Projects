@@ -9,6 +9,7 @@ export interface Exercise {
   name: string;
   muscleGroup: MuscleGroup;
   equipment: Equipment;
+  secondaryMuscleGroups?: MuscleGroup[];
 }
 
 export interface SetLog {
