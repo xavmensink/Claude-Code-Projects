@@ -256,21 +256,37 @@ export default function SettingsScreen() {
 
           {privateKeyJwk && (
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, color: '#FFD700', marginBottom: 4, fontWeight: 600 }}>
-                ⚠ Private Key — copy this now, you won't see it again
+              <div style={{ fontSize: 12, color: '#FFD700', marginBottom: 6, fontWeight: 600 }}>
+                ⚠ Private Key — paste this into Cloudflare as VAPID_PRIVATE_KEY_JWK
               </div>
-              <div
-                onClick={() => { navigator.clipboard?.writeText(privateKeyJwk); alert('Copied!'); }}
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>
+                Tap inside the box → tap "Select All" → tap "Copy". Make sure you copy the full text including the curly braces at each end.
+              </div>
+              <textarea
+                readOnly
+                value={privateKeyJwk}
+                rows={4}
+                onFocus={e => e.target.select()}
                 style={{
-                  padding: '8px 10px', background: 'rgba(255,215,0,0.06)',
-                  borderRadius: 8, border: '1px solid rgba(255,215,0,0.3)',
-                  fontSize: 10, wordBreak: 'break-all', fontFamily: 'monospace', color: 'var(--text-secondary)',
-                  cursor: 'pointer',
+                  width: '100%', padding: '8px 10px',
+                  background: 'rgba(255,215,0,0.06)',
+                  border: '1px solid rgba(255,215,0,0.3)',
+                  borderRadius: 8, fontSize: 10,
+                  fontFamily: 'monospace', color: 'var(--text-secondary)',
+                  resize: 'none', boxSizing: 'border-box',
+                }}
+              />
+              <button
+                onClick={() => navigator.clipboard?.writeText(privateKeyJwk).then(() => alert('Copied to clipboard!')).catch(() => alert('Tap inside the box above, then Select All → Copy manually.'))}
+                style={{
+                  width: '100%', marginTop: 6, padding: 10,
+                  border: '1px solid rgba(255,215,0,0.4)', borderRadius: 8,
+                  background: 'rgba(255,215,0,0.08)', color: '#FFD700',
+                  fontSize: 13, cursor: 'pointer',
                 }}
               >
-                {privateKeyJwk}
-                <div style={{ marginTop: 6, color: '#FFD700', fontSize: 11 }}>Tap to copy</div>
-              </div>
+                Copy Private Key
+              </button>
             </div>
           )}
 
