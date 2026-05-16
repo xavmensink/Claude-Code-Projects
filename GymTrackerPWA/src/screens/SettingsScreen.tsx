@@ -127,6 +127,31 @@ export default function SettingsScreen() {
     }
   };
 
+  const testConnection = async () => {
+    const serverUrl = localStorage.getItem('gt_push_server');
+    const subJson   = localStorage.getItem('gt_push_sub');
+    if (!serverUrl || !subJson) {
+      setPushStatus({ ok: false, msg: '✗ No server URL or subscription saved. Complete Step 3 first.' });
+      return;
+    }
+    setPushStatus({ ok: true, msg: '⏳ Sending test push (arrives in ~5 seconds)…' });
+    try {
+      const res = await fetch(`${serverUrl}/schedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: JSON.parse(subJson), delay: 5000 }),
+      });
+      const text = await res.text();
+      if (res.ok) {
+        setPushStatus({ ok: true, msg: `✓ Request reached Cloudflare! Close the app now — notification should arrive in ~5s. Server replied: ${text}` });
+      } else {
+        setPushStatus({ ok: false, msg: `✗ Cloudflare returned error ${res.status}: ${text}` });
+      }
+    } catch (err) {
+      setPushStatus({ ok: false, msg: `✗ Could not reach server: ${String(err)}. Check the Worker URL is correct.` });
+    }
+  };
+
   const hasPushSub = !!localStorage.getItem('gt_push_sub');
 
   return (
@@ -286,10 +311,24 @@ export default function SettingsScreen() {
             className="btn-primary"
             onClick={enablePush}
             disabled={pushBusy}
-            style={{ opacity: pushBusy ? 0.6 : 1 }}
+            style={{ opacity: pushBusy ? 0.6 : 1, marginBottom: 8 }}
           >
             {pushBusy ? 'Subscribing…' : hasPushSub ? 'Re-subscribe' : 'Enable Background Push'}
           </button>
+
+          {hasPushSub && (
+            <button
+              onClick={testConnection}
+              style={{
+                width: '100%', padding: 12,
+                border: '1px solid var(--border)', borderRadius: 10,
+                background: 'none', color: 'var(--text-secondary)',
+                fontSize: 14, cursor: 'pointer',
+              }}
+            >
+              🔔 Test Push (fires in 5s)
+            </button>
+          )}
 
           {pushStatus && (
             <div style={{
