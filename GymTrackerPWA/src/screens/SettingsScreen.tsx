@@ -58,7 +58,8 @@ export default function SettingsScreen() {
   };
 
   // Generate a VAPID key pair in the browser using Web Crypto.
-  // Public key is auto-saved; private key is shown once for copying into Cloudflare.
+  // Private key is exported as PKCS8 base64url (plain string, no JSON — easier to copy).
+  // Public key is auto-saved; shown for reference.
   const generateKeys = async () => {
     setKeyGenBusy(true);
     try {
@@ -67,14 +68,16 @@ export default function SettingsScreen() {
         true,
         ['sign', 'verify']
       );
-      const privateJwk = await crypto.subtle.exportKey('jwk', key.privateKey) as JsonWebKey;
-      const publicJwk  = await crypto.subtle.exportKey('jwk', key.publicKey)  as JsonWebKey;
 
-      // Build uncompressed EC point (0x04 || x || y) and base64url-encode
+      // Private key → PKCS8 binary → base64url string (no JSON, no quotes)
+      const pkcs8 = await crypto.subtle.exportKey('pkcs8', key.privateKey);
+      const privateKeyB64url = bytesToB64url(new Uint8Array(pkcs8));
+
+      // Public key → uncompressed EC point (0x04 || x || y) → base64url
+      const publicJwk = await crypto.subtle.exportKey('jwk', key.publicKey) as JsonWebKey;
       const decode = (s: string) => {
         const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
-        const raw = atob(b64);
-        return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+        return Uint8Array.from([...atob(b64)].map(c => c.charCodeAt(0)));
       };
       const x = decode(publicJwk.x!);
       const y = decode(publicJwk.y!);
@@ -86,7 +89,7 @@ export default function SettingsScreen() {
 
       localStorage.setItem('gt_vapid_pub', pubB64url);
       setVapidKey(pubB64url);
-      setPrivateKeyJwk(JSON.stringify(privateJwk));
+      setPrivateKeyJwk(privateKeyB64url);
     } catch (err) {
       alert(`Key generation failed: ${err}`);
     } finally {
@@ -257,10 +260,10 @@ export default function SettingsScreen() {
           {privateKeyJwk && (
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 12, color: '#FFD700', marginBottom: 6, fontWeight: 600 }}>
-                ⚠ Private Key — paste this into Cloudflare as VAPID_PRIVATE_KEY_JWK
+                ⚠ Private Key — paste this into Cloudflare as VAPID_PRIVATE_KEY
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>
-                Tap inside the box → tap "Select All" → tap "Copy". Make sure you copy the full text including the curly braces at each end.
+                Tap "Copy Private Key" below, or tap inside the box → Select All → Copy.
               </div>
               <textarea
                 readOnly

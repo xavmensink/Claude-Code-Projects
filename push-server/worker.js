@@ -2,7 +2,7 @@
  * GymTracker Push Server — Cloudflare Worker
  *
  * Required environment variables (set in Cloudflare dashboard or wrangler.toml):
- *   VAPID_PRIVATE_KEY_JWK  — JSON string of the P-256 EC private key JWK
+ *   VAPID_PRIVATE_KEY  — JSON string of the P-256 EC private key JWK
  *   VAPID_PUBLIC_KEY       — Base64url uncompressed P-256 public key (from /generate-keys)
  *   VAPID_SUBJECT          — "mailto:you@example.com"
  *
@@ -65,7 +65,7 @@ export default {
         return new Response('Missing subscription', { status: 400, headers: CORS });
       }
       // Check env vars are present
-      const missing = ['VAPID_PRIVATE_KEY_JWK', 'VAPID_PUBLIC_KEY', 'VAPID_SUBJECT']
+      const missing = ['VAPID_PRIVATE_KEY', 'VAPID_PUBLIC_KEY', 'VAPID_SUBJECT']
         .filter(k => !env[k]);
       if (missing.length) {
         return new Response(JSON.stringify({ ok: false, error: `Missing env vars: ${missing.join(', ')}` }), {
@@ -106,7 +106,7 @@ export default {
 
       return new Response(JSON.stringify({
         instructions: [
-          '1. Copy "privateKeyJwk" → set as VAPID_PRIVATE_KEY_JWK env var in Cloudflare',
+          '1. Copy "privateKeyJwk" → set as VAPID_PRIVATE_KEY env var in Cloudflare',
           '2. Copy "publicKey"     → paste into GymTracker Settings > VAPID Public Key',
           '3. Set VAPID_SUBJECT    → "mailto:your@email.com" in Cloudflare env vars',
           '4. Redeploy the worker  → keys are now active',
@@ -126,14 +126,14 @@ export default {
 // ── VAPID push ────────────────────────────────────────────────────────────────
 
 async function sendPush(env, subscription) {
-  if (!env.VAPID_PRIVATE_KEY_JWK || !env.VAPID_PUBLIC_KEY || !env.VAPID_SUBJECT) {
+  if (!env.VAPID_PRIVATE_KEY || !env.VAPID_PUBLIC_KEY || !env.VAPID_SUBJECT) {
     throw new Error('VAPID env vars not configured');
   }
 
   const endpoint = subscription.endpoint;
   const audience = new URL(endpoint).origin;
 
-  const privateKey = await importPrivateKey(env.VAPID_PRIVATE_KEY_JWK);
+  const privateKey = await importPrivateKey(env.VAPID_PRIVATE_KEY);
   const jwt        = await signVapidJwt(privateKey, audience, env.VAPID_SUBJECT);
 
   const res = await fetch(endpoint, {
@@ -150,10 +150,12 @@ async function sendPush(env, subscription) {
   }
 }
 
-async function importPrivateKey(jwkStr) {
+async function importPrivateKey(pkcs8B64url) {
+  // Private key is stored as PKCS8 base64url (plain string, no JSON)
+  const bytes = b64ToBytes(pkcs8B64url);
   return crypto.subtle.importKey(
-    'jwk',
-    JSON.parse(jwkStr),
+    'pkcs8',
+    bytes,
     { name: 'ECDSA', namedCurve: 'P-256' },
     false,
     ['sign']
