@@ -9,6 +9,7 @@
  * Endpoints:
  *   GET  /generate-keys  — One-time key generation (delete after use)
  *   POST /schedule       — Body: { subscription, delay }  (delay in ms)
+ *   POST /test-push      — Sends push immediately, returns exact success/error
  */
 
 const CORS = {
@@ -50,6 +51,37 @@ export default {
       return new Response(JSON.stringify({ ok: true, scheduledIn: delay }), {
         headers: { ...CORS, 'Content-Type': 'application/json' },
       });
+    }
+
+    // ── POST /test-push ───────────────────────────────────────────────────────
+    // Sends a push immediately and returns the result synchronously.
+    // Use this to diagnose VAPID key mismatches or subscription errors.
+    if (url.pathname === '/test-push' && request.method === 'POST') {
+      let body;
+      try { body = await request.json(); } catch {
+        return new Response('Bad JSON', { status: 400, headers: CORS });
+      }
+      if (!body?.subscription?.endpoint) {
+        return new Response('Missing subscription', { status: 400, headers: CORS });
+      }
+      // Check env vars are present
+      const missing = ['VAPID_PRIVATE_KEY_JWK', 'VAPID_PUBLIC_KEY', 'VAPID_SUBJECT']
+        .filter(k => !env[k]);
+      if (missing.length) {
+        return new Response(JSON.stringify({ ok: false, error: `Missing env vars: ${missing.join(', ')}` }), {
+          status: 500, headers: { ...CORS, 'Content-Type': 'application/json' },
+        });
+      }
+      try {
+        await sendPush(env, body.subscription);
+        return new Response(JSON.stringify({ ok: true, message: 'Push sent! You should receive a notification now.' }), {
+          headers: { ...CORS, 'Content-Type': 'application/json' },
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ ok: false, error: String(err) }), {
+          status: 500, headers: { ...CORS, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // ── GET /generate-keys ────────────────────────────────────────────────────

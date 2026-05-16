@@ -134,18 +134,18 @@ export default function SettingsScreen() {
       setPushStatus({ ok: false, msg: '✗ No server URL or subscription saved. Complete Step 3 first.' });
       return;
     }
-    setPushStatus({ ok: true, msg: '⏳ Sending test push (arrives in ~5 seconds)…' });
+    setPushStatus({ ok: true, msg: '⏳ Sending test push now…' });
     try {
-      const res = await fetch(`${serverUrl}/schedule`, {
+      const res = await fetch(`${serverUrl}/test-push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscription: JSON.parse(subJson), delay: 5000 }),
+        body: JSON.stringify({ subscription: JSON.parse(subJson) }),
       });
-      const text = await res.text();
-      if (res.ok) {
-        setPushStatus({ ok: true, msg: `✓ Request reached Cloudflare! Close the app now — notification should arrive in ~5s. Server replied: ${text}` });
+      const json = await res.json() as { ok: boolean; message?: string; error?: string };
+      if (json.ok) {
+        setPushStatus({ ok: true, msg: `✓ ${json.message ?? 'Push sent!'}` });
       } else {
-        setPushStatus({ ok: false, msg: `✗ Cloudflare returned error ${res.status}: ${text}` });
+        setPushStatus({ ok: false, msg: `✗ Server error: ${json.error}` });
       }
     } catch (err) {
       setPushStatus({ ok: false, msg: `✗ Could not reach server: ${String(err)}. Check the Worker URL is correct.` });
