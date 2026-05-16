@@ -115,6 +115,13 @@ export default function SettingsScreen() {
         return;
       }
       const reg = await navigator.serviceWorker.ready;
+
+      // Clear any existing subscription before creating a new one.
+      // Required when the VAPID key has changed — the browser won't let you
+      // subscribe with a different key while an old subscription exists.
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) await existing.unsubscribe();
+
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: vapidKey.trim(),
