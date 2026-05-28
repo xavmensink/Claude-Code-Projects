@@ -1,4 +1,4 @@
-import { Exercise, MuscleGroup, WorkoutTemplate, WorkoutSession, AppSettings, WeekSchedule, PersonalRecord } from '../types';
+import { Exercise, MuscleGroup, WorkoutTemplate, WorkoutSession, AppSettings, WeekSchedule, PersonalRecord, UserProfile } from '../types';
 import { generateId } from '../utils/helpers';
 
 const KEYS = {
@@ -9,6 +9,7 @@ const KEYS = {
   SETTINGS: 'gt_settings',
   SCHEDULE: 'gt_schedule',
   PERSONAL_RECORDS: 'gt_prs',
+  PROFILE: 'gt_profile',
 };
 
 function get<T>(key: string): T | null {
@@ -153,6 +154,16 @@ export function getExercisePRSummary(exerciseId: string): { weightPR: PersonalRe
   const prs = getPRs().filter(p => p.exerciseId === exerciseId && p.prType === 'weight');
   const weightPR = prs.sort((a, b) => b.weight - a.weight)[0] ?? null;
   return { weightPR };
+}
+
+// ─── User Profile ─────────────────────────────────────────────────────────────
+
+export function getProfile(): UserProfile | null {
+  return get<UserProfile>(KEYS.PROFILE);
+}
+
+export function saveProfile(profile: UserProfile): void {
+  set(KEYS.PROFILE, profile);
 }
 
 // ─── Backup / Restore ─────────────────────────────────────────────────────────

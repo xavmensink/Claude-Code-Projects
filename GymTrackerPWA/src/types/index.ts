@@ -65,6 +65,12 @@ export interface AppSettings {
   weightUnit: 'kg' | 'lbs';
 }
 
+export interface UserProfile {
+  sex: 'male' | 'female';
+  age: number;
+  bodyweightKg: number;
+}
+
 export interface ScheduledDay {
   templateId: string;
   templateName: string;

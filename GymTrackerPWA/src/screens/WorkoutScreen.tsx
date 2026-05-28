@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { WorkoutSession, ExerciseLog, SetLog, WorkoutTemplate, Exercise, PersonalRecord } from '../types';
-import { getHistory, saveSession, getSettings, getExercises, checkForNewPRs } from '../storage/storage';
+import { getHistory, saveSession, getSettings, getExercises, checkForNewPRs, getProfile } from '../storage/storage';
 import { useWorkout } from '../context/WorkoutContext';
 import { getSuggestedWeight } from '../utils/progressiveOverload';
+import { getProfileSuggestion } from '../utils/strengthStandards';
 import { generateId, formatStopwatch } from '../utils/helpers';
 import PRCelebration from '../components/PRCelebration';
 
@@ -21,6 +22,7 @@ export default function WorkoutScreen() {
   const [elapsed, setElapsed] = useState(0);
   const [history] = useState(() => getHistory());
   const [unit] = useState(() => getSettings().weightUnit);
+  const [profile] = useState(() => getProfile());
   const [showPicker, setShowPicker] = useState(false);
   const [allEx] = useState<Exercise[]>(() => getExercises());
   const [pickerSearch, setPickerSearch] = useState('');
@@ -145,7 +147,14 @@ export default function WorkoutScreen() {
 
       <div style={{ padding: '8px 12px 100px' }}>
         {session.exercises.map((ex, exIdx) => {
-          const suggestion = getSuggestedWeight(ex.exerciseId, ex.sets[0]?.reps ?? 10, history, unit);
+          const targetReps = ex.sets[0]?.reps ?? 10;
+          const suggestion = getSuggestedWeight(ex.exerciseId, targetReps, history, unit);
+          const profileSuggKg = !suggestion && profile
+            ? getProfileSuggestion(ex.exerciseId, profile, history, targetReps)
+            : null;
+          const profileWeight = profileSuggKg !== null
+            ? (unit === 'lbs' ? Math.round(profileSuggKg * 2.20462 / 5) * 5 : profileSuggKg)
+            : null;
           return (
             <div key={exIdx} className="card" style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -183,7 +192,7 @@ export default function WorkoutScreen() {
                     <input type="number" className="input"
                       value={set.weight > 0 ? set.weight : ''}
                       onChange={e => updateSetField(exIdx, setIdx, 'weight', e.target.value)}
-                      placeholder={suggestion ? String(suggestion.weight) : '0'}
+                      placeholder={suggestion ? String(suggestion.weight) : profileWeight !== null ? String(profileWeight) : '0'}
                       disabled={set.completed}
                       style={{ textAlign: 'center', padding: '8px 4px', fontSize: 14 }}
                     />
@@ -219,11 +228,15 @@ export default function WorkoutScreen() {
                 );
               })}
 
-              {suggestion && (
+              {suggestion ? (
                 <div style={{ fontSize: 12, marginTop: 4, color: suggestion.direction === 'increase' ? 'var(--success)' : suggestion.direction === 'decrease' ? 'var(--danger)' : 'var(--text-secondary)' }}>
                   {suggestion.direction === 'increase' ? '↑' : suggestion.direction === 'decrease' ? '↓' : '→'} Suggested: {suggestion.weight}{unit}
                 </div>
-              )}
+              ) : profileWeight !== null ? (
+                <div style={{ fontSize: 12, marginTop: 4, color: 'var(--text-muted)' }}>
+                  ≈ Profile estimate: {profileWeight}{unit}
+                </div>
+              ) : null}
 
               <button onClick={() => addSet(exIdx)} style={{
                 width: '100%', marginTop: 10, padding: '8px', border: '1px dashed var(--border)',

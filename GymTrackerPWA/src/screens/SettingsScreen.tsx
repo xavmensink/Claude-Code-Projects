@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { AppSettings } from '../types';
-import { getSettings, saveSettings, exportAllData, importAllData } from '../storage/storage';
+import { getSettings, saveSettings, exportAllData, importAllData, getProfile, saveProfile, getHistory } from '../storage/storage';
+import { computeStrengthProfile, StrengthProfile } from '../utils/strengthStandards';
 
 const REST_OPTIONS = [60, 90, 120, 180, 240];
 
@@ -25,10 +26,47 @@ export default function SettingsScreen() {
   const [privateKeyJwk, setPrivateKeyJwk] = useState('');
   const [keyGenBusy, setKeyGenBusy]       = useState(false);
 
+  // Strength profile state
+  const [profileSex, setProfileSex]               = useState<'male'|'female'>(() => getProfile()?.sex ?? 'male');
+  const [profileAge, setProfileAge]               = useState<string>(() => String(getProfile()?.age ?? ''));
+  const [profileBw, setProfileBw]                 = useState<string>(() => {
+    const p = getProfile();
+    if (!p) return '';
+    const bw = getSettings().weightUnit === 'lbs' ? Math.round(p.bodyweightKg * 2.20462) : p.bodyweightKg;
+    return String(bw);
+  });
+  const [profileMsg, setProfileMsg]               = useState('');
+  const [strengthInfo, setStrengthInfo]           = useState<StrengthProfile | null>(() => {
+    const p = getProfile();
+    if (!p) return null;
+    return computeStrengthProfile(getHistory(), p);
+  });
+
   const update = (patch: Partial<AppSettings>) => {
     const next = { ...settings, ...patch };
     setSettings(next);
     saveSettings(next);
+  };
+
+  const TIER_COLOR: Record<string, string> = {
+    beginner: 'var(--text-muted)',
+    novice: 'var(--text-secondary)',
+    intermediate: 'var(--accent)',
+    advanced: 'var(--success)',
+    elite: '#FFD700',
+  };
+
+  const handleSaveProfile = () => {
+    const age = parseInt(profileAge, 10);
+    const bwDisplay = parseFloat(profileBw);
+    if (!age || age < 10 || age > 100) { setProfileMsg('✗ Enter a valid age (10–100).'); return; }
+    if (!bwDisplay || bwDisplay < 20) { setProfileMsg('✗ Enter a valid bodyweight.'); return; }
+    const bodyweightKg = settings.weightUnit === 'lbs' ? bwDisplay / 2.20462 : bwDisplay;
+    const profile = { sex: profileSex, age, bodyweightKg };
+    saveProfile(profile);
+    const info = computeStrengthProfile(getHistory(), profile);
+    setStrengthInfo(info);
+    setProfileMsg('✓ Profile saved.');
   };
 
   const clearAll = () => {
@@ -362,6 +400,60 @@ export default function SettingsScreen() {
               color: pushStatus.ok ? 'var(--success)' : 'var(--danger)',
             }}>
               {pushStatus.msg}
+            </div>
+          )}
+        </div>
+
+        {/* ── Strength Profile ── */}
+        <div className="section-label" style={{ marginTop: 20 }}>Strength Profile</div>
+        <div className="card">
+          <div style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.6, marginBottom: 14 }}>
+            Helps the app suggest starting weights for exercises you have not tracked before, based on your existing lifts.
+          </div>
+
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Biological Sex</div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+            {(['male', 'female'] as const).map(s => (
+              <button key={s} onClick={() => setProfileSex(s)} style={{
+                flex: 1, padding: 12, borderRadius: 8, cursor: 'pointer', fontSize: 15,
+                border: `1px solid ${profileSex === s ? 'var(--accent)' : 'var(--border)'}`,
+                background: profileSex === s ? 'var(--accent-dim)' : 'none',
+                color: profileSex === s ? 'var(--accent)' : 'var(--text-secondary)',
+                fontWeight: profileSex === s ? 700 : 400, textTransform: 'capitalize',
+              }}>{s}</button>
+            ))}
+          </div>
+
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 }}>Age</div>
+          <input type="number" className="input" placeholder="e.g. 28" value={profileAge}
+            onChange={e => setProfileAge(e.target.value)} min={10} max={100}
+            style={{ marginBottom: 14 }} />
+
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 }}>
+            Bodyweight ({settings.weightUnit})
+          </div>
+          <input type="number" className="input"
+            placeholder={settings.weightUnit === 'lbs' ? 'e.g. 175' : 'e.g. 80'}
+            value={profileBw} onChange={e => setProfileBw(e.target.value)}
+            style={{ marginBottom: 14 }} />
+
+          <button className="btn-primary" onClick={handleSaveProfile}>Save Profile</button>
+
+          {profileMsg && (
+            <div style={{ marginTop: 10, fontSize: 13, color: profileMsg.startsWith('✓') ? 'var(--success)' : 'var(--danger)' }}>
+              {profileMsg}
+            </div>
+          )}
+
+          {strengthInfo && (
+            <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Strength Tier</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: TIER_COLOR[strengthInfo.tier], textTransform: 'capitalize' }}>
+                {strengthInfo.tier}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                {Math.round(strengthInfo.factor * 100)}% of intermediate standard · assessed from {strengthInfo.assessedExercises} exercise{strengthInfo.assessedExercises !== 1 ? 's' : ''}
+              </div>
             </div>
           )}
         </div>
