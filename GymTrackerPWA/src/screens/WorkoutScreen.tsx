@@ -26,6 +26,7 @@ export default function WorkoutScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [allEx] = useState<Exercise[]>(() => getExercises());
   const [pickerSearch, setPickerSearch] = useState('');
+  const [pickerFor, setPickerFor] = useState<'add' | number | null>(null);
   const [pendingPRs, setPendingPRs] = useState<PersonalRecord[]>([]);
   const [prSetIds, setPrSetIds] = useState<Set<string>>(new Set());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -111,7 +112,32 @@ export default function WorkoutScreen() {
     if (!session) return;
     const newEx: ExerciseLog = { exerciseId: ex.id, exerciseName: ex.name, sets: [{ id: generateId(), weight: 0, reps: 10, completed: false, timestamp: Date.now() }] };
     update({ ...session, exercises: [...session.exercises, newEx] });
-    setShowPicker(false); setPickerSearch('');
+    setShowPicker(false); setPickerFor(null); setPickerSearch('');
+  };
+
+  const replaceExercise = (exIdx: number, newEx: Exercise) => {
+    if (!session) return;
+    const exercises = session.exercises.map((ex, i) => {
+      if (i !== exIdx) return ex;
+      return {
+        exerciseId: newEx.id,
+        exerciseName: newEx.name,
+        sets: ex.sets.map(s => ({ ...s, id: generateId(), weight: 0, completed: false, rpe: undefined })),
+      };
+    });
+    update({ ...session, exercises });
+    setPickerFor(null); setPickerSearch('');
+  };
+
+  const openReplacePicker = (exIdx: number) => {
+    setPickerFor(exIdx);
+    setPickerSearch('');
+    setShowPicker(false);
+  };
+
+  const handlePickerSelect = (ex: Exercise) => {
+    if (typeof pickerFor === 'number') replaceExercise(pickerFor, ex);
+    else addExercise(ex);
   };
 
   const finish = () => {
@@ -159,7 +185,13 @@ export default function WorkoutScreen() {
             <div key={exIdx} className="card" style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>{ex.exerciseName}</div>
-                <button onClick={() => removeExercise(exIdx)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18 }}>✕</button>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button onClick={() => openReplacePicker(exIdx)} title="Replace exercise"
+                    style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12, padding: '3px 8px', fontWeight: 500 }}>
+                    Replace
+                  </button>
+                  <button onClick={() => removeExercise(exIdx)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18, paddingLeft: 4 }}>✕</button>
+                </div>
               </div>
 
               {/* Column headers */}
@@ -248,7 +280,7 @@ export default function WorkoutScreen() {
           );
         })}
 
-        <button onClick={() => setShowPicker(true)} style={{
+        <button onClick={() => { setShowPicker(true); setPickerFor('add'); }} style={{
           width: '100%', padding: 14, border: '1px dashed var(--accent)', borderRadius: 12,
           background: 'none', color: 'var(--accent)', fontSize: 15, fontWeight: 600, cursor: 'pointer',
         }}>
@@ -256,14 +288,14 @@ export default function WorkoutScreen() {
         </button>
       </div>
 
-      {showPicker && (
-        <div className="modal-overlay" onClick={() => setShowPicker(false)}>
+      {(showPicker || typeof pickerFor === 'number') && (
+        <div className="modal-overlay" onClick={() => { setShowPicker(false); setPickerFor(null); setPickerSearch(''); }}>
           <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '85dvh' }}>
-            <div className="modal-title">Add Exercise</div>
+            <div className="modal-title">{typeof pickerFor === 'number' ? 'Replace Exercise' : 'Add Exercise'}</div>
             <input className="input" placeholder="Search..." value={pickerSearch} onChange={e => setPickerSearch(e.target.value)} style={{ marginBottom: 12 }} autoFocus />
             <div style={{ overflowY: 'auto', maxHeight: '60dvh' }}>
               {allEx.filter(e => e.name.toLowerCase().includes(pickerSearch.toLowerCase())).map(ex => (
-                <div key={ex.id} onClick={() => addExercise(ex)} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
+                <div key={ex.id} onClick={() => handlePickerSelect(ex)} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
                   <div style={{ fontWeight: 500 }}>{ex.name}</div>
                   <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{ex.muscleGroup} · {ex.equipment}</div>
                 </div>
