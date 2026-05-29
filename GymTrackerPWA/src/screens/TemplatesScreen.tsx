@@ -77,15 +77,23 @@ function TemplateEditor({ template, onSave, onClose }: {
 }) {
   const [name, setName] = useState(template.name);
   const [exercises, setExercises] = useState<TemplateExercise[]>(template.exercises);
-  const [showPicker, setShowPicker] = useState(false);
+  const [pickerFor, setPickerFor] = useState<'add' | number | null>(null);
   const [allEx, setAllEx] = useState<Exercise[]>([]);
   const [search, setSearch] = useState('');
 
-  const openPicker = () => { setAllEx(getExercises()); setShowPicker(true); };
+  const openPicker = () => { setAllEx(getExercises()); setPickerFor('add'); };
+  const openReplace = (i: number) => { setAllEx(getExercises()); setPickerFor(i); setSearch(''); };
+  const closePicker = () => { setPickerFor(null); setSearch(''); };
 
-  const pick = (ex: Exercise) => {
-    setExercises(prev => [...prev, { exerciseId: ex.id, exerciseName: ex.name, targetSets: 3, targetReps: 10 }]);
-    setShowPicker(false); setSearch('');
+  const handlePick = (ex: Exercise) => {
+    if (typeof pickerFor === 'number') {
+      setExercises(prev => prev.map((e, idx) =>
+        idx === pickerFor ? { ...e, exerciseId: ex.id, exerciseName: ex.name } : e
+      ));
+    } else {
+      setExercises(prev => [...prev, { exerciseId: ex.id, exerciseName: ex.name, targetSets: 3, targetReps: 10 }]);
+    }
+    closePicker();
   };
 
   const remove = (i: number) => setExercises(prev => prev.filter((_, idx) => idx !== i));
@@ -111,25 +119,31 @@ function TemplateEditor({ template, onSave, onClose }: {
 
         <div className="section-label">Exercises</div>
         {exercises.map((ex, i) => (
-          <div key={i} className="card" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>{ex.exerciseName}</div>
-              <div style={{ display: 'flex', gap: 16 }}>
-                {(['targetSets', 'targetReps'] as const).map(field => (
-                  <div key={field} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: 11 }}>{field === 'targetSets' ? 'Sets' : 'Reps'}</div>
-                    <input
-                      type="number"
-                      className="input"
-                      value={ex[field]}
-                      onChange={e => updateField(i, field, e.target.value)}
-                      style={{ width: 60, textAlign: 'center', padding: '8px 4px' }}
-                    />
-                  </div>
-                ))}
+          <div key={i} className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{ex.exerciseName}</div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button onClick={() => openReplace(i)} title="Replace exercise"
+                  style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12, padding: '3px 8px', fontWeight: 500 }}>
+                  Replace
+                </button>
+                <button onClick={() => remove(i)} style={{ background: 'none', border: 'none', color: 'var(--danger)', fontSize: 18, cursor: 'pointer', paddingLeft: 4 }}>🗑</button>
               </div>
             </div>
-            <button onClick={() => remove(i)} style={{ background: 'none', border: 'none', color: 'var(--danger)', fontSize: 18, cursor: 'pointer' }}>🗑</button>
+            <div style={{ display: 'flex', gap: 16 }}>
+              {(['targetSets', 'targetReps'] as const).map(field => (
+                <div key={field} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: 11 }}>{field === 'targetSets' ? 'Sets' : 'Reps'}</div>
+                  <input
+                    type="number"
+                    className="input"
+                    value={ex[field]}
+                    onChange={e => updateField(i, field, e.target.value)}
+                    style={{ width: 60, textAlign: 'center', padding: '8px 4px' }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         ))}
 
@@ -141,14 +155,14 @@ function TemplateEditor({ template, onSave, onClose }: {
         </button>
       </div>
 
-      {showPicker && (
-        <div className="modal-overlay" onClick={() => setShowPicker(false)}>
+      {pickerFor !== null && (
+        <div className="modal-overlay" onClick={closePicker}>
           <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '85dvh' }}>
-            <div className="modal-title">Add Exercise</div>
+            <div className="modal-title">{typeof pickerFor === 'number' ? 'Replace Exercise' : 'Add Exercise'}</div>
             <input className="input" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} style={{ marginBottom: 12 }} autoFocus />
             <div style={{ overflowY: 'auto', maxHeight: '60dvh' }}>
               {allEx.filter(e => e.name.toLowerCase().includes(search.toLowerCase())).map(ex => (
-                <div key={ex.id} onClick={() => pick(ex)}
+                <div key={ex.id} onClick={() => handlePick(ex)}
                   style={{ padding: '12px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
                   <div style={{ fontWeight: 500 }}>{ex.name}</div>
                   <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{ex.muscleGroup} · {ex.equipment}</div>
