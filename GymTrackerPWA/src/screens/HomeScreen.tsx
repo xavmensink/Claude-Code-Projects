@@ -46,6 +46,11 @@ export default function HomeScreen() {
     const d = new Date(s.startTime); d.setHours(0,0,0,0); return d.getTime();
   }));
 
+  // Start of the current week (Monday at midnight)
+  const todayMidnight = new Date(today); todayMidnight.setHours(0,0,0,0);
+  const weekStart = new Date(todayMidnight);
+  weekStart.setDate(todayMidnight.getDate() - (todayDow === 0 ? 6 : todayDow - 1));
+
   const assignTemplate = (day: 0|1|2|3|4|5|6, template: WorkoutTemplate) => {
     setScheduledDay(day, template.id, template.name);
     setSchedule(getSchedule());
@@ -109,16 +114,13 @@ export default function HomeScreen() {
             const isToday = dow === todayDow;
             const scheduled = schedule[dow];
 
-            // Check if this day was worked out this week
-            const dayDate = new Date(today);
-            const diff = dow === 0 ? (7 - todayDow) % 7 || 0 : dow - todayDow;
-            dayDate.setDate(today.getDate() + diff);
-            dayDate.setHours(0, 0, 0, 0);
-            // Look back up to 7 days to find the most recent occurrence of this weekday
-            const checkDate = new Date(today);
-            checkDate.setDate(today.getDate() - ((todayDow - dow + 7) % 7));
-            checkDate.setHours(0, 0, 0, 0);
-            const didWorkout = workoutDays.has(checkDate.getTime());
+            // Exact date of this weekday in the current week (Mon=0 offset … Sun=6 offset)
+            const daysFromMonday = dow === 0 ? 6 : dow - 1;
+            const thisWeekDate = new Date(weekStart);
+            thisWeekDate.setDate(weekStart.getDate() + daysFromMonday);
+            // Only show done if the day has already passed (or is today) this week
+            const didWorkout = thisWeekDate.getTime() <= todayMidnight.getTime()
+              && workoutDays.has(thisWeekDate.getTime());
 
             return (
               <div key={dow} style={{
