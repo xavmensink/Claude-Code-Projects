@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Exercise, MuscleGroup, Equipment } from '../types';
-import { getExercises, addExercise, deleteExercise, getExercisePRSummary, getSettings } from '../storage/storage';
+import { getExercises, addExercise, deleteExercise, getExercisePRSummary, getSettings, getHistory } from '../storage/storage';
 import { generateId, formatDate } from '../utils/helpers';
 
 const GROUPS: MuscleGroup[] = ['chest','back','shoulders','biceps','triceps','quads','hamstrings','glutes','calves','abs','forearms'];
@@ -12,6 +12,79 @@ export const GROUP_COLOR: Record<MuscleGroup, string> = {
 };
 
 function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+// Best estimated 1RM (Epley) per session for an exercise, oldest first
+function compute1RMHistory(exerciseId: string): { date: number; oneRM: number }[] {
+  const points: { date: number; oneRM: number }[] = [];
+  for (const session of getHistory()) {
+    let best = 0;
+    for (const ex of session.exercises) {
+      if (ex.exerciseId !== exerciseId) continue;
+      for (const set of ex.sets) {
+        if (set.completed && set.weight > 0 && set.reps > 0) {
+          const rm = set.weight * (1 + set.reps / 30);
+          if (rm > best) best = rm;
+        }
+      }
+    }
+    if (best > 0) points.push({ date: session.startTime, oneRM: best });
+  }
+  return points.sort((a, b) => a.date - b.date);
+}
+
+function ProgressChart({ points, unit, color }: { points: { date: number; oneRM: number }[]; unit: string; color: string }) {
+  const W = 320, H = 120, padX = 6, padY = 14;
+  const values = points.map(p => p.oneRM);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+
+  const x = (i: number) => points.length === 1
+    ? W / 2
+    : padX + (i / (points.length - 1)) * (W - padX * 2);
+  const y = (v: number) => H - padY - ((v - min) / range) * (H - padY * 2);
+
+  const path = points.map((p, i) => `${x(i)},${y(p.oneRM)}`).join(' ');
+  const last = points[points.length - 1];
+  const first = points[0];
+  const diff = last.oneRM - first.oneRM;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+        <span style={{ fontSize: 18, fontWeight: 800, color }}>
+          {Math.round(last.oneRM)} {unit}
+          <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', marginLeft: 6 }}>est. 1RM</span>
+        </span>
+        {points.length > 1 && (
+          <span style={{ fontSize: 12, fontWeight: 700, color: diff >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+            {diff >= 0 ? '↑' : '↓'} {Math.abs(Math.round(diff))} {unit} since {formatDate(first.date)}
+          </span>
+        )}
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+        <polyline
+          points={path}
+          fill="none"
+          stroke={color}
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        {points.map((p, i) => (
+          <circle key={i} cx={x(i)} cy={y(p.oneRM)} r={i === points.length - 1 ? 4 : 2.5}
+            fill={i === points.length - 1 ? color : 'var(--bg-secondary)'}
+            stroke={color} strokeWidth={1.5} />
+        ))}
+      </svg>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)' }}>
+        <span>{formatDate(first.date)}</span>
+        <span>{points.length} session{points.length !== 1 ? 's' : ''}</span>
+        <span>{formatDate(last.date)}</span>
+      </div>
+    </div>
+  );
+}
 
 function MuscleTag({ group, small }: { group: MuscleGroup; small?: boolean }) {
   return (
@@ -73,6 +146,10 @@ export default function ExercisesScreen() {
   };
 
   const prSummary = selectedEx ? getExercisePRSummary(selectedEx.id) : null;
+  const progressPoints = useMemo(
+    () => selectedEx ? compute1RMHistory(selectedEx.id) : [],
+    [selectedEx],
+  );
 
   return (
     <div>
@@ -142,6 +219,17 @@ export default function ExercisesScreen() {
               </div>
               <button onClick={() => setSelectedEx(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 22, cursor: 'pointer' }}>✕</button>
             </div>
+
+            {progressPoints.length > 0 && (
+              <div style={{ borderTop: '1px solid var(--border)', marginTop: 16, paddingTop: 16 }}>
+                <div className="section-label" style={{ marginBottom: 10 }}>Progress</div>
+                <ProgressChart
+                  points={progressPoints}
+                  unit={unit}
+                  color={GROUP_COLOR[selectedEx.muscleGroup]}
+                />
+              </div>
+            )}
 
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 16, paddingTop: 16 }}>
               <div className="section-label" style={{ marginBottom: 12 }}>Personal Records</div>

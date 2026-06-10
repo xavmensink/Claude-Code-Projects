@@ -1,4 +1,4 @@
-import { Exercise, MuscleGroup, WorkoutTemplate, WorkoutSession, AppSettings, WeekSchedule, PersonalRecord, UserProfile } from '../types';
+import { Exercise, MuscleGroup, WorkoutTemplate, WorkoutSession, AppSettings, WeekSchedule, PersonalRecord, UserProfile, BodyweightEntry } from '../types';
 import { generateId } from '../utils/helpers';
 
 const KEYS = {
@@ -10,6 +10,7 @@ const KEYS = {
   SCHEDULE: 'gt_schedule',
   PERSONAL_RECORDS: 'gt_prs',
   PROFILE: 'gt_profile',
+  BODYWEIGHT: 'gt_bodyweight',
 };
 
 function get<T>(key: string): T | null {
@@ -130,6 +131,12 @@ export function savePRs(prs: PersonalRecord[]): void {
   set(KEYS.PERSONAL_RECORDS, prs);
 }
 
+export function deletePRs(ids: string[]): void {
+  if (!ids.length) return;
+  const idSet = new Set(ids);
+  savePRs(getPRs().filter(p => !idSet.has(p.id)));
+}
+
 export function checkForNewPRs(
   exerciseId: string,
   exerciseName: string,
@@ -143,11 +150,41 @@ export function checkForNewPRs(
     .filter(p => p.prType === 'weight')
     .reduce((max, p) => Math.max(max, p.weight), 0);
 
-  if (weight <= bestWeight) return [];
+  if (weight > bestWeight) {
+    const pr: PersonalRecord = { id: generateId(), exerciseId, exerciseName, weight, reps, achievedAt: Date.now(), prType: 'weight' };
+    savePRs([...getPRs(), pr]);
+    return [pr];
+  }
 
-  const pr: PersonalRecord = { id: generateId(), exerciseId, exerciseName, weight, reps, achievedAt: Date.now(), prType: 'weight' };
-  savePRs([...getPRs(), pr]);
-  return [pr];
+  // Reps PR: more reps than any previous completed set at this weight or heavier.
+  // Only fires when prior sets exist at >= this weight (the weight PR covers the rest).
+  let bestReps = 0;
+  let hasPrior = false;
+  for (const session of getHistory()) {
+    for (const ex of session.exercises) {
+      if (ex.exerciseId !== exerciseId) continue;
+      for (const set of ex.sets) {
+        if (set.completed && set.weight >= weight && set.reps > 0) {
+          hasPrior = true;
+          if (set.reps > bestReps) bestReps = set.reps;
+        }
+      }
+    }
+  }
+  // PRs recorded earlier in the current session aren't in history yet
+  for (const p of existing) {
+    if (p.weight >= weight) {
+      hasPrior = true;
+      if (p.reps > bestReps) bestReps = p.reps;
+    }
+  }
+
+  if (hasPrior && reps > bestReps) {
+    const pr: PersonalRecord = { id: generateId(), exerciseId, exerciseName, weight, reps, achievedAt: Date.now(), prType: 'reps' };
+    savePRs([...getPRs(), pr]);
+    return [pr];
+  }
+  return [];
 }
 
 export function getExercisePRSummary(exerciseId: string): { weightPR: PersonalRecord | null } {
@@ -166,11 +203,30 @@ export function saveProfile(profile: UserProfile): void {
   set(KEYS.PROFILE, profile);
 }
 
+// ─── Bodyweight Log ───────────────────────────────────────────────────────────
+
+export function getBodyweightLog(): BodyweightEntry[] {
+  return get<BodyweightEntry[]>(KEYS.BODYWEIGHT) ?? [];
+}
+
+// One entry per calendar day — logging again the same day replaces it
+export function logBodyweight(weightKg: number): void {
+  const log = getBodyweightLog();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const idx = log.findIndex(e => {
+    const d = new Date(e.date); d.setHours(0, 0, 0, 0);
+    return d.getTime() === today.getTime();
+  });
+  const entry: BodyweightEntry = { date: Date.now(), weightKg };
+  if (idx >= 0) log[idx] = entry; else log.push(entry);
+  set(KEYS.BODYWEIGHT, log);
+}
+
 // ─── Backup / Restore ─────────────────────────────────────────────────────────
 
 export function exportAllData(): void {
   const payload = {
-    version: 3,
+    version: 4,
     exportedAt: Date.now(),
     exercises:  getExercises(),
     templates:  getTemplates(),
@@ -179,6 +235,7 @@ export function exportAllData(): void {
     schedule:   getSchedule(),
     prs:        getPRs(),
     profile:    getProfile(),
+    bodyweight: getBodyweightLog(),
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
@@ -200,6 +257,7 @@ export function importAllData(jsonText: string): void {
   if (d.schedule  && typeof d.schedule === 'object') set(KEYS.SCHEDULE,      d.schedule);
   if (d.prs       && Array.isArray(d.prs))        set(KEYS.PERSONAL_RECORDS, d.prs);
   if (d.profile   && typeof d.profile === 'object') set(KEYS.PROFILE,        d.profile);
+  if (d.bodyweight && Array.isArray(d.bodyweight)) set(KEYS.BODYWEIGHT,      d.bodyweight);
 }
 
 // ─── Seed ─────────────────────────────────────────────────────────────────────

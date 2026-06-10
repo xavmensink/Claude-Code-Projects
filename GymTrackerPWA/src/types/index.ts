@@ -71,6 +71,11 @@ export interface UserProfile {
   bodyweightKg: number;
 }
 
+export interface BodyweightEntry {
+  date: number;
+  weightKg: number;
+}
+
 export interface ScheduledDay {
   templateId: string;
   templateName: string;

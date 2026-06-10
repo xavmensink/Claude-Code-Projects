@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { WorkoutSession, ExerciseLog, SetLog, WorkoutTemplate, Exercise, PersonalRecord } from '../types';
-import { getHistory, saveSession, getSettings, getExercises, checkForNewPRs, getProfile } from '../storage/storage';
+import { getHistory, saveSession, getSettings, getExercises, checkForNewPRs, deletePRs, getProfile } from '../storage/storage';
 import { useWorkout } from '../context/WorkoutContext';
 import { getSuggestedWeight } from '../utils/progressiveOverload';
 import { getProfileSuggestion } from '../utils/strengthStandards';
@@ -12,6 +12,109 @@ function rpeColor(rpe: number) {
   if (rpe <= 6) return 'var(--success)';
   if (rpe <= 8) return 'var(--warning)';
   return 'var(--danger)';
+}
+
+const PLATES_KG  = [25, 20, 15, 10, 5, 2.5, 1.25];
+const PLATES_LBS = [45, 35, 25, 10, 5, 2.5];
+const BARS_KG    = [20, 15, 10];
+const BARS_LBS   = [45, 35, 15];
+
+const PLATE_COLOR: Record<number, string> = {
+  25: '#e94560', 20: '#2196F3', 15: '#FFC107', 10: '#4CAF50',
+  45: '#2196F3', 35: '#FFC107',
+  5: '#fff', 2.5: '#888', 1.25: '#aaa',
+};
+
+function PlateCalcModal({ initialWeight, unit, onClose }: {
+  initialWeight: number;
+  unit: 'kg' | 'lbs';
+  onClose: () => void;
+}) {
+  const bars   = unit === 'kg' ? BARS_KG : BARS_LBS;
+  const plates = unit === 'kg' ? PLATES_KG : PLATES_LBS;
+  const [target, setTarget] = useState(String(initialWeight > 0 ? initialWeight : bars[0]));
+  const [bar, setBar] = useState(bars[0]);
+
+  const targetNum = parseFloat(target) || 0;
+  const perSide = (targetNum - bar) / 2;
+
+  // Greedy plate breakdown
+  const breakdown: { plate: number; count: number }[] = [];
+  let remaining = perSide;
+  for (const p of plates) {
+    const count = Math.floor((remaining + 1e-9) / p);
+    if (count > 0) { breakdown.push({ plate: p, count }); remaining -= count * p; }
+  }
+  const leftover = Math.round(remaining * 100) / 100;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-title">Plate Calculator</div>
+
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 }}>Target weight ({unit})</div>
+        <input type="number" className="input" value={target} onChange={e => setTarget(e.target.value)}
+          style={{ marginBottom: 14, textAlign: 'center', fontSize: 18, fontWeight: 700 }} />
+
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>Bar weight</div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+          {bars.map(b => (
+            <button key={b} onClick={() => setBar(b)} style={{
+              flex: 1, padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 14,
+              border: `1px solid ${bar === b ? 'var(--accent)' : 'var(--border)'}`,
+              background: bar === b ? 'var(--accent-dim)' : 'none',
+              color: bar === b ? 'var(--accent)' : 'var(--text-secondary)',
+              fontWeight: bar === b ? 700 : 400,
+            }}>{b} {unit}</button>
+          ))}
+        </div>
+
+        {perSide < 0 ? (
+          <div style={{ color: 'var(--danger)', textAlign: 'center', fontSize: 14, padding: '12px 0' }}>
+            Target is lighter than the bar.
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 10 }}>
+              Per side ({perSide.toLocaleString()} {unit}):
+            </div>
+            {breakdown.length === 0 ? (
+              <div style={{ color: 'var(--text-secondary)', textAlign: 'center', fontSize: 14, padding: '8px 0' }}>
+                Empty bar — no plates needed.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, justifyContent: 'center', padding: '6px 0 12px' }}>
+                {breakdown.flatMap(({ plate, count }) =>
+                  Array.from({ length: count }, (_, i) => (
+                    <div key={`${plate}-${i}`} style={{
+                      width: Math.max(22, Math.min(40, plate * 1.4)),
+                      height: Math.max(44, Math.min(86, plate * 3)),
+                      borderRadius: 6,
+                      background: (PLATE_COLOR[plate] ?? '#666') + 'cc',
+                      border: '1px solid rgba(255,255,255,0.25)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, fontWeight: 800,
+                      color: plate === 5 ? '#222' : '#fff',
+                    }}>
+                      {plate}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+            {leftover > 0 && (
+              <div style={{ color: 'var(--warning)', fontSize: 12, textAlign: 'center', marginBottom: 8 }}>
+                ⚠ {leftover} {unit}/side can't be made with standard plates
+                (closest: {(targetNum - leftover * 2).toLocaleString()} {unit})
+              </div>
+            )}
+          </>
+        )}
+
+        <button className="btn-primary" onClick={onClose} style={{ marginTop: 8 }}>Done</button>
+      </div>
+    </div>
+  );
 }
 
 export default function WorkoutScreen() {
@@ -29,6 +132,8 @@ export default function WorkoutScreen() {
   const [pickerFor, setPickerFor] = useState<'add' | number | null>(null);
   const [pendingPRs, setPendingPRs] = useState<PersonalRecord[]>([]);
   const [prSetIds, setPrSetIds] = useState<Set<string>>(new Set());
+  const [plateCalc, setPlateCalc] = useState<number | null>(null); // initial weight, null = closed
+  const prIdsBySet = useRef<Map<string, string[]>>(new Map());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Start from template if navigated with state
@@ -97,8 +202,17 @@ export default function WorkoutScreen() {
       const ex = session.exercises[exIdx];
       const newPRs = checkForNewPRs(ex.exerciseId, ex.exerciseName, set.weight, set.reps);
       if (newPRs.length > 0) {
+        prIdsBySet.current.set(set.id, newPRs.map(p => p.id));
         setPrSetIds(prev => new Set([...prev, set.id]));
         setPendingPRs(newPRs);
+      }
+    } else {
+      // Un-ticking a set that triggered a PR removes that PR again
+      const prIds = prIdsBySet.current.get(set.id);
+      if (prIds) {
+        deletePRs(prIds);
+        prIdsBySet.current.delete(set.id);
+        setPrSetIds(prev => { const next = new Set(prev); next.delete(set.id); return next; });
       }
     }
   };
@@ -185,11 +299,21 @@ export default function WorkoutScreen() {
           const lastLog = history
             .find(h => h.exercises.some(e => e.exerciseId === ex.exerciseId))
             ?.exercises.find(e => e.exerciseId === ex.exerciseId);
+          const isBarbell = allEx.find(a => a.id === ex.exerciseId)?.equipment === 'barbell';
+          const calcWeight = ex.sets.find(s => !s.completed && s.weight > 0)?.weight
+            ?? ex.sets.find(s => s.weight > 0)?.weight
+            ?? suggestion?.weight ?? profileWeight ?? 0;
           return (
             <div key={exIdx} className="card" style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>{ex.exerciseName}</div>
                 <div style={{ display: 'flex', gap: 4 }}>
+                  {isBarbell && (
+                    <button onClick={() => setPlateCalc(calcWeight)} title="Plate calculator"
+                      style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12, padding: '3px 8px', fontWeight: 500 }}>
+                      Plates
+                    </button>
+                  )}
                   <button onClick={() => openReplacePicker(exIdx)} title="Replace exercise"
                     style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12, padding: '3px 8px', fontWeight: 500 }}>
                     Replace
@@ -307,6 +431,14 @@ export default function WorkoutScreen() {
             </div>
           </div>
         </div>
+      )}
+
+      {plateCalc !== null && (
+        <PlateCalcModal
+          initialWeight={plateCalc}
+          unit={unit}
+          onClose={() => setPlateCalc(null)}
+        />
       )}
 
       {pendingPRs.length > 0 && (

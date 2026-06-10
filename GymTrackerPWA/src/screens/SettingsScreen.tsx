@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { AppSettings } from '../types';
-import { getSettings, saveSettings, exportAllData, importAllData, getProfile, saveProfile, getHistory } from '../storage/storage';
+import { getSettings, saveSettings, exportAllData, importAllData, getProfile, saveProfile, getHistory, getBodyweightLog, logBodyweight } from '../storage/storage';
 import { computeStrengthProfile, StrengthProfile } from '../utils/strengthStandards';
 
 const REST_OPTIONS = [60, 90, 120, 180, 240];
@@ -41,6 +41,7 @@ export default function SettingsScreen() {
     if (!p) return null;
     return computeStrengthProfile(getHistory(), p);
   });
+  const [bwLog, setBwLog] = useState(() => getBodyweightLog());
 
   const update = (patch: Partial<AppSettings>) => {
     const next = { ...settings, ...patch };
@@ -64,10 +65,15 @@ export default function SettingsScreen() {
     const bodyweightKg = settings.weightUnit === 'lbs' ? bwDisplay / 2.20462 : bwDisplay;
     const profile = { sex: profileSex, age, bodyweightKg };
     saveProfile(profile);
+    logBodyweight(bodyweightKg);
+    setBwLog(getBodyweightLog());
     const info = computeStrengthProfile(getHistory(), profile);
     setStrengthInfo(info);
     setProfileMsg('✓ Profile saved.');
   };
+
+  const displayBw = (kg: number) =>
+    settings.weightUnit === 'lbs' ? `${Math.round(kg * 2.20462 * 10) / 10} lbs` : `${Math.round(kg * 10) / 10} kg`;
 
   const clearAll = () => {
     if (confirm('Delete ALL workout data? This cannot be undone.')) {
@@ -453,6 +459,33 @@ export default function SettingsScreen() {
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                 {Math.round(strengthInfo.factor * 100)}% of intermediate standard · assessed from {strengthInfo.assessedExercises} exercise{strengthInfo.assessedExercises !== 1 ? 's' : ''}
+              </div>
+            </div>
+          )}
+
+          {bwLog.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
+                Bodyweight Log <span style={{ fontWeight: 400 }}>(updated each time you save your profile)</span>
+              </div>
+              {bwLog.length > 1 && (() => {
+                const diffKg = bwLog[bwLog.length - 1].weightKg - bwLog[0].weightKg;
+                const diffDisp = settings.weightUnit === 'lbs' ? diffKg * 2.20462 : diffKg;
+                return (
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6, color: diffDisp === 0 ? 'var(--text-secondary)' : diffDisp > 0 ? 'var(--success)' : 'var(--danger)' }}>
+                    {diffDisp >= 0 ? '↑' : '↓'} {Math.abs(Math.round(diffDisp * 10) / 10)} {settings.weightUnit} since first entry
+                  </div>
+                );
+              })()}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {[...bwLog].reverse().slice(0, 6).map(e => (
+                  <div key={e.date} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>
+                      {new Date(e.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                    <span style={{ fontWeight: 600 }}>{displayBw(e.weightKg)}</span>
+                  </div>
+                ))}
               </div>
             </div>
           )}

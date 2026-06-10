@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { WorkoutSession } from '../types';
 import { getHistory } from '../storage/storage';
-import { VOLUME_GROUPS, getWeekRange, computeWeeklyVolume } from '../utils/volumeUtils';
+import { VOLUME_GROUPS, getWeekRange, computeWeeklyVolume, formatSets } from '../utils/volumeUtils';
 
 const MIN_EFFECTIVE = 10;
 const MAX_ADAPTIVE  = 20;
@@ -122,12 +122,12 @@ export default function VolumeScreen() {
           padding: '12px 20px', margin: '12px 0 16px',
         }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--accent)' }}>{totalThis}</div>
+            <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--accent)' }}>{formatSets(totalThis)}</div>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Sets this week</div>
           </div>
           <div style={{ width: 1, background: 'var(--border)' }} />
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--text-secondary)' }}>{totalPrev}</div>
+            <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--text-secondary)' }}>{formatSets(totalPrev)}</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Last week</div>
           </div>
         </div>
@@ -143,8 +143,8 @@ export default function VolumeScreen() {
 
           let arrowIcon  = '→';
           let arrowColor = 'var(--text-muted)';
-          if (diff > 0)  { arrowIcon = `↑${diff}`; arrowColor = 'var(--success)'; }
-          if (diff < 0)  { arrowIcon = `↓${Math.abs(diff)}`; arrowColor = 'var(--danger)'; }
+          if (diff > 0)  { arrowIcon = `↑${formatSets(diff)}`; arrowColor = 'var(--success)'; }
+          if (diff < 0)  { arrowIcon = `↓${formatSets(Math.abs(diff))}`; arrowColor = 'var(--danger)'; }
 
           const statusText =
             sets === 0               ? 'Not trained'        :
@@ -163,7 +163,7 @@ export default function VolumeScreen() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
                   <span style={{ fontSize: 22, fontWeight: 900, color: sets === 0 ? 'var(--text-muted)' : color }}>
-                    {sets}
+                    {formatSets(sets)}
                   </span>
                   <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>sets</span>
                   {(sets > 0 || prev > 0) && (
@@ -178,7 +178,7 @@ export default function VolumeScreen() {
 
               {prev > 0 && (
                 <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
-                  Last week: {prev} sets
+                  Last week: {formatSets(prev)} sets
                 </div>
               )}
             </div>
@@ -189,7 +189,7 @@ export default function VolumeScreen() {
           <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.7 }}>
             <strong style={{ color: 'var(--text-secondary)' }}>MEV</strong> (Min. Effective Volume) = 10 sets/week &nbsp;·&nbsp;
             <strong style={{ color: 'var(--text-secondary)' }}>MAV</strong> (Max. Adaptive Volume) = 20 sets/week
-            <br />Resets each Monday based on session dates.
+            <br />Secondary muscles count as ½ set. Resets each Monday based on session dates.
           </div>
         </div>
       </div>

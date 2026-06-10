@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { WorkoutSession } from '../types';
-import { getHistory, deleteSession, getPRs, getSettings } from '../storage/storage';
+import { getHistory, deleteSession, saveSession, getPRs, getSettings } from '../storage/storage';
 import { formatDate, formatDuration, totalVolume } from '../utils/helpers';
 import { isPR } from '../utils/progressiveOverload';
 
@@ -17,6 +17,7 @@ function sessionDurationSecs(s: WorkoutSession): number {
 export default function HistoryScreen() {
   const [history, setHistory] = useState<WorkoutSession[]>([]);
   const [selected, setSelected] = useState<WorkoutSession | null>(null);
+  const [draft, setDraft] = useState<WorkoutSession | null>(null); // non-null = edit mode
   const [unit] = useState(() => getSettings().weightUnit);
 
   const load = () => setHistory(getHistory());
@@ -38,30 +39,68 @@ export default function HistoryScreen() {
   }, [history, allPRs]);
 
   const handleDelete = (s: WorkoutSession) => {
-    if (confirm('Delete this workout from history?')) { deleteSession(s.id); setSelected(null); load(); }
+    if (confirm('Delete this workout from history?')) { deleteSession(s.id); setSelected(null); setDraft(null); load(); }
+  };
+
+  const startEdit = () => {
+    if (!selected) return;
+    setDraft({ ...selected, exercises: selected.exercises.map(ex => ({ ...ex, sets: ex.sets.map(s => ({ ...s })) })) });
+  };
+
+  const updateDraftSet = (exIdx: number, setId: string, field: 'weight' | 'reps' | 'rpe', val: string) => {
+    if (!draft) return;
+    const num = field === 'rpe' && val === '' ? undefined : parseFloat(val) || 0;
+    setDraft({
+      ...draft,
+      exercises: draft.exercises.map((ex, i) => i !== exIdx ? ex : {
+        ...ex,
+        sets: ex.sets.map(s => s.id !== setId ? s : { ...s, [field]: num }),
+      }),
+    });
+  };
+
+  const saveEdit = () => {
+    if (!draft) return;
+    saveSession(draft);
+    setSelected(draft);
+    setDraft(null);
+    load();
   };
 
   if (selected) {
-    const dur = selected.endTime ? formatDuration(Math.floor((selected.endTime - selected.startTime) / 1000)) : '—';
-    const vol = totalVolume(selected);
-    const prevHistory = history.filter(s => s.startTime < selected.startTime);
+    const view = draft ?? selected;
+    const dur = view.endTime ? formatDuration(Math.floor((view.endTime - view.startTime) / 1000)) : '—';
+    const vol = totalVolume(view);
+    const prevHistory = history.filter(s => s.startTime < view.startTime);
 
     return (
       <div>
         <div className="screen-header">
-          <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 17, cursor: 'pointer' }}>‹ History</button>
-          <button onClick={() => handleDelete(selected)} style={{ background: 'none', border: 'none', color: 'var(--danger)', fontSize: 14, cursor: 'pointer' }}>Delete</button>
+          {draft ? (
+            <>
+              <button onClick={() => setDraft(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: 16, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={saveEdit} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>Save</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 17, cursor: 'pointer' }}>‹ History</button>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <button onClick={startEdit} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 14, cursor: 'pointer' }}>Edit</button>
+                <button onClick={() => handleDelete(selected)} style={{ background: 'none', border: 'none', color: 'var(--danger)', fontSize: 14, cursor: 'pointer' }}>Delete</button>
+              </div>
+            </>
+          )}
         </div>
 
         <div style={{ padding: 16 }}>
-          <div style={{ fontSize: 22, fontWeight: 800 }}>{selected.name}</div>
-          <div style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 16 }}>{formatDate(selected.startTime)}</div>
+          <div style={{ fontSize: 22, fontWeight: 800 }}>{view.name}{draft && <span style={{ color: 'var(--warning)', fontSize: 13, fontWeight: 600, marginLeft: 8 }}>editing</span>}</div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 16 }}>{formatDate(view.startTime)}</div>
 
           <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
             {[
               ['⏱', dur,                                          'Duration'  ],
               ['📦', `${Math.round(vol).toLocaleString()} ${unit}`, 'Volume'  ],
-              ['🏋️', String(selected.exercises.length),           'Exercises' ],
+              ['🏋️', String(view.exercises.length),               'Exercises' ],
             ].map(([icon, val, label]) => (
               <div key={label} className="card" style={{ flex: 1, textAlign: 'center', padding: 12 }}>
                 <div style={{ fontSize: 18 }}>{icon}</div>
@@ -71,7 +110,7 @@ export default function HistoryScreen() {
             ))}
           </div>
 
-          {selected.exercises.map((ex, i) => {
+          {view.exercises.map((ex, i) => {
             const completedSets = ex.sets.filter(s => s.completed);
             return (
               <div key={i} className="card">
@@ -82,7 +121,25 @@ export default function HistoryScreen() {
                   ))}
                 </div>
                 {completedSets.map((set, si) => {
-                  const ispr = isPR(set.weight, set.reps, ex.exerciseId, prevHistory);
+                  const ispr = !draft && isPR(set.weight, set.reps, ex.exerciseId, prevHistory);
+                  if (draft) {
+                    return (
+                      <div key={set.id} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 1fr 28px', gap: 4, paddingTop: 6, borderTop: '1px solid var(--border)', alignItems: 'center' }}>
+                        <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>{si + 1}</div>
+                        <input type="number" className="input" value={set.weight > 0 ? set.weight : ''}
+                          onChange={e => updateDraftSet(i, set.id, 'weight', e.target.value)}
+                          style={{ textAlign: 'center', padding: '6px 4px', fontSize: 13 }} />
+                        <input type="number" className="input" value={set.reps > 0 ? set.reps : ''}
+                          onChange={e => updateDraftSet(i, set.id, 'reps', e.target.value)}
+                          style={{ textAlign: 'center', padding: '6px 4px', fontSize: 13 }} />
+                        <input type="number" className="input" value={set.rpe ?? ''} min={1} max={10}
+                          onChange={e => updateDraftSet(i, set.id, 'rpe', e.target.value)}
+                          placeholder="—"
+                          style={{ textAlign: 'center', padding: '6px 2px', fontSize: 13 }} />
+                        <div />
+                      </div>
+                    );
+                  }
                   return (
                     <div key={set.id} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 1fr 28px', gap: 4, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
                       <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>{si + 1}</div>
