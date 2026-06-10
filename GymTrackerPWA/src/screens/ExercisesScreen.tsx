@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Exercise, MuscleGroup, Equipment } from '../types';
-import { getExercises, addExercise, deleteExercise, getExercisePRSummary } from '../storage/storage';
+import { getExercises, addExercise, deleteExercise, getExercisePRSummary, getSettings } from '../storage/storage';
 import { generateId, formatDate } from '../utils/helpers';
 
 const GROUPS: MuscleGroup[] = ['chest','back','shoulders','biceps','triceps','quads','hamstrings','glutes','calves','abs','forearms'];
@@ -37,6 +37,7 @@ export default function ExercisesScreen() {
   const [secondaryMuscles, setSecondaryMuscles] = useState<MuscleGroup[]>([]);
   const [equip, setEquip] = useState<Equipment>('barbell');
   const [selectedEx, setSelectedEx] = useState<Exercise | null>(null);
+  const [unit] = useState(() => getSettings().weightUnit);
 
   const load = () => setExercises(getExercises());
   useEffect(load, []);
@@ -157,7 +158,7 @@ export default function ExercisesScreen() {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 11, color: '#FFD700', fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>Best Weight</div>
                     <div style={{ fontSize: 20, fontWeight: 800, color: '#FFD700' }}>
-                      {prSummary.weightPR.weight} kg
+                      {prSummary.weightPR.weight} {unit}
                       <span style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,215,0,0.7)', marginLeft: 6 }}>
                         × {prSummary.weightPR.reps} reps
                       </span>

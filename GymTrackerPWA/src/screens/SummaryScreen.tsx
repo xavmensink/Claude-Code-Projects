@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { WorkoutSession } from '../types';
-import { getPRs, getExercises } from '../storage/storage';
+import { getPRs, getExercises, getSettings } from '../storage/storage';
 import { formatDate, formatDuration, totalVolume } from '../utils/helpers';
 
 const GROUP_COLOR: Record<string, string> = {
@@ -29,6 +29,7 @@ export default function SummaryScreen() {
   useEffect(() => { if (!session) navigate('/', { replace: true }); }, [session, navigate]);
   if (!session) return null;
 
+  const unit = getSettings().weightUnit;
   const durationSecs = Math.floor(((session.endTime ?? Date.now()) - session.startTime) / 1000);
   const dur   = formatDuration(durationSecs);
   const vol   = totalVolume(session);
@@ -69,7 +70,7 @@ export default function SummaryScreen() {
         <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
           <StatCard icon="⏱" value={dur}                                     label="Duration"  />
           <StatCard icon="✅" value={String(sets)}                            label="Sets done" />
-          <StatCard icon="📦" value={`${Math.round(vol).toLocaleString()} kg`} label="Volume"   />
+          <StatCard icon="📦" value={`${Math.round(vol).toLocaleString()} ${unit}`} label="Volume"   />
         </div>
 
         {/* Muscle groups trained */}
@@ -106,7 +107,7 @@ export default function SummaryScreen() {
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 14 }}>{pr.exerciseName}</div>
                   <div style={{ color: '#FFD700', fontWeight: 800, fontSize: 16 }}>
-                    {pr.weight} kg × {pr.reps} reps
+                    {pr.weight} {unit} × {pr.reps} reps
                   </div>
                   <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 1 }}>
                     New heaviest weight for this exercise 🔥
@@ -132,7 +133,7 @@ export default function SummaryScreen() {
                     return (
                       <div key={set.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
                         <span style={{ color: 'var(--text-muted)', width: 20 }}>#{si + 1}</span>
-                        <span style={{ fontWeight: 600 }}>{set.weight} kg × {set.reps}</span>
+                        <span style={{ fontWeight: 600 }}>{set.weight} {unit} × {set.reps}</span>
                         {set.rpe != null && (
                           <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>RPE {set.rpe}</span>
                         )}

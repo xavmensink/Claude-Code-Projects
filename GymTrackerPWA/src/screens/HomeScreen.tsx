@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WorkoutTemplate, WorkoutSession, WeekSchedule } from '../types';
-import { getTemplates, getHistory, getSchedule, setScheduledDay, clearScheduledDay } from '../storage/storage';
+import { getTemplates, getHistory, getSchedule, setScheduledDay, clearScheduledDay, getSettings } from '../storage/storage';
 import { formatDate, formatDuration, totalVolume } from '../utils/helpers';
 import { useWorkout } from '../context/WorkoutContext';
 
@@ -18,6 +18,8 @@ function computeStreak(history: WorkoutSession[]): number {
   }));
   let streak = 0;
   const cur = new Date(today);
+  // Today not trained yet shouldn't break the streak — start from yesterday
+  if (!dates.has(cur.getTime())) cur.setDate(cur.getDate() - 1);
   while (dates.has(cur.getTime())) { streak++; cur.setDate(cur.getDate() - 1); }
   return streak;
 }
@@ -27,6 +29,7 @@ export default function HomeScreen() {
   const [history, setHistory] = useState<WorkoutSession[]>([]);
   const [schedule, setSchedule] = useState<WeekSchedule>({});
   const [showScheduler, setShowScheduler] = useState<0|1|2|3|4|5|6 | null>(null);
+  const [unit] = useState(() => getSettings().weightUnit);
   const navigate = useNavigate();
   const { activeWorkout } = useWorkout();
 
@@ -204,7 +207,7 @@ export default function HomeScreen() {
                 </div>
                 <div style={{ display: 'flex', gap: 14, color: 'var(--text-secondary)', fontSize: 13 }}>
                   <span>⏱ {dur}</span>
-                  <span>📦 {Math.round(totalVolume(s))} kg</span>
+                  <span>📦 {Math.round(totalVolume(s))} {unit}</span>
                   <span>🏋️ {s.exercises.length} ex</span>
                 </div>
               </div>

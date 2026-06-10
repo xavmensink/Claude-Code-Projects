@@ -181,6 +181,10 @@ export default function WorkoutScreen() {
           const profileWeight = profileSuggKg !== null
             ? (unit === 'lbs' ? Math.round(profileSuggKg * 2.20462 / 5) * 5 : profileSuggKg)
             : null;
+          // Most recent session that actually contains this exercise (not just history[0])
+          const lastLog = history
+            .find(h => h.exercises.some(e => e.exerciseId === ex.exerciseId))
+            ?.exercises.find(e => e.exerciseId === ex.exerciseId);
           return (
             <div key={exIdx} className="card" style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -202,7 +206,7 @@ export default function WorkoutScreen() {
               </div>
 
               {ex.sets.map((set, setIdx) => {
-                const prev = history[0]?.exercises.find(e => e.exerciseId === ex.exerciseId)?.sets[setIdx];
+                const prev = lastLog?.sets[setIdx];
                 const prevText = prev?.completed ? `${prev.weight}×${prev.reps}` : '—';
                 return (
                   <div key={set.id} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 1fr 44px 38px', gap: 4, marginBottom: 6, opacity: set.completed && !prSetIds.has(set.id) ? 0.55 : 1 }}>

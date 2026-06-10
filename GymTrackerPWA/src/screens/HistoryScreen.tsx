@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { WorkoutSession } from '../types';
-import { getHistory, deleteSession, getPRs } from '../storage/storage';
+import { getHistory, deleteSession, getPRs, getSettings } from '../storage/storage';
 import { formatDate, formatDuration, totalVolume } from '../utils/helpers';
 import { isPR } from '../utils/progressiveOverload';
 
@@ -17,6 +17,7 @@ function sessionDurationSecs(s: WorkoutSession): number {
 export default function HistoryScreen() {
   const [history, setHistory] = useState<WorkoutSession[]>([]);
   const [selected, setSelected] = useState<WorkoutSession | null>(null);
+  const [unit] = useState(() => getSettings().weightUnit);
 
   const load = () => setHistory(getHistory());
   useEffect(load, []);
@@ -59,7 +60,7 @@ export default function HistoryScreen() {
           <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
             {[
               ['⏱', dur,                                          'Duration'  ],
-              ['📦', Math.round(vol).toLocaleString() + ' kg',    'Volume'    ],
+              ['📦', `${Math.round(vol).toLocaleString()} ${unit}`, 'Volume'  ],
               ['🏋️', String(selected.exercises.length),           'Exercises' ],
             ].map(([icon, val, label]) => (
               <div key={label} className="card" style={{ flex: 1, textAlign: 'center', padding: 12 }}>
@@ -85,7 +86,7 @@ export default function HistoryScreen() {
                   return (
                     <div key={set.id} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 1fr 28px', gap: 4, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
                       <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>{si + 1}</div>
-                      <div style={{ textAlign: 'center', fontSize: 13 }}>{set.weight} kg</div>
+                      <div style={{ textAlign: 'center', fontSize: 13 }}>{set.weight} {unit}</div>
                       <div style={{ textAlign: 'center', fontSize: 13 }}>{set.reps}</div>
                       <div style={{ textAlign: 'center', fontSize: 13, color: set.rpe ? (set.rpe <= 6 ? 'var(--success)' : set.rpe <= 8 ? 'var(--warning)' : 'var(--danger)') : 'var(--text-muted)' }}>
                         {set.rpe ?? '—'}
@@ -131,7 +132,7 @@ export default function HistoryScreen() {
               <BestCard
                 icon="📦"
                 label="Most Volume"
-                value={`${Math.round(totalVolume(bestStats.mostVolume)).toLocaleString()} kg`}
+                value={`${Math.round(totalVolume(bestStats.mostVolume)).toLocaleString()} ${unit}`}
                 sub={formatDate(bestStats.mostVolume.startTime)}
                 onClick={() => setSelected(bestStats.mostVolume)}
               />
@@ -162,7 +163,7 @@ export default function HistoryScreen() {
 
               <div style={{ display: 'flex', gap: 14, color: 'var(--text-secondary)', fontSize: 13, marginBottom: 8 }}>
                 {dur && <span>⏱ {dur}</span>}
-                <span>📦 {vol.toLocaleString()} kg</span>
+                <span>📦 {vol.toLocaleString()} {unit}</span>
                 <span>🏋️ {s.exercises.length} ex</span>
                 {prCount > 0 && (
                   <span style={{ color: '#FFD700', fontWeight: 600 }}>🏆 {prCount}</span>

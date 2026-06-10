@@ -50,7 +50,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [timer, setTimer] = useState<TimerState>({ isRunning: false, secondsLeft: 0, totalSeconds: 120 });
   const intervalRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const alertFiredRef  = useRef(false);
-  const defaultDuration = useRef(getSettings().restTimerDuration);
 
   const stopInterval = useCallback(() => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
@@ -99,7 +98,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   }, [stopInterval, fireAlert]);
 
   const startRestTimer = useCallback((seconds?: number) => {
-    const duration = seconds ?? defaultDuration.current;
+    // Read at call time so changes made in Settings apply without a reload
+    const duration = seconds ?? getSettings().restTimerDuration;
     stopInterval();
     alertFiredRef.current = false;
 

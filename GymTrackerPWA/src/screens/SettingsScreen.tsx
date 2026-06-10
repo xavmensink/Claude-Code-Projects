@@ -8,7 +8,7 @@ const REST_OPTIONS = [60, 90, 120, 180, 240];
 function bytesToB64url(bytes: Uint8Array): string {
   let binary = '';
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary).replace(/\+/g, '-').replace(/_/g, '/').replace(/=/g, '').replace(/\//g, '_');
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
 export default function SettingsScreen() {

@@ -170,7 +170,7 @@ export function saveProfile(profile: UserProfile): void {
 
 export function exportAllData(): void {
   const payload = {
-    version: 2,
+    version: 3,
     exportedAt: Date.now(),
     exercises:  getExercises(),
     templates:  getTemplates(),
@@ -178,6 +178,7 @@ export function exportAllData(): void {
     settings:   getSettings(),
     schedule:   getSchedule(),
     prs:        getPRs(),
+    profile:    getProfile(),
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
@@ -198,6 +199,7 @@ export function importAllData(jsonText: string): void {
   if (d.settings  && typeof d.settings === 'object') set(KEYS.SETTINGS,      d.settings);
   if (d.schedule  && typeof d.schedule === 'object') set(KEYS.SCHEDULE,      d.schedule);
   if (d.prs       && Array.isArray(d.prs))        set(KEYS.PERSONAL_RECORDS, d.prs);
+  if (d.profile   && typeof d.profile === 'object') set(KEYS.PROFILE,        d.profile);
 }
 
 // ─── Seed ─────────────────────────────────────────────────────────────────────
