@@ -1,4 +1,4 @@
-import { WorkoutSession, SetLog } from '../types';
+import { WorkoutSession, SetLog, ExerciseLog } from '../types';
 
 function epley1RM(weight: number, reps: number): number {
   return weight * (1 + reps / 30);
@@ -16,24 +16,36 @@ export interface Suggestion {
   direction: 'increase' | 'maintain' | 'decrease';
 }
 
+// Matches a history log to an exercise by ID, or by name as a fallback —
+// a deleted-and-recreated or replaced exercise gets a new ID, but its old
+// logged sessions must still drive the suggestion.
+function logMatcher(exerciseId: string, exerciseName?: string) {
+  const name = exerciseName?.trim().toLowerCase();
+  return (e: ExerciseLog) =>
+    e.exerciseId === exerciseId ||
+    (!!name && e.exerciseName.trim().toLowerCase() === name);
+}
+
 export function getSuggestedWeight(
   exerciseId: string,
   targetReps: number,
   history: WorkoutSession[],
   unit: 'kg' | 'lbs' = 'kg',
+  exerciseName?: string,
 ): Suggestion | null {
   const increment = unit === 'kg' ? 2.5 : 5;
+  const matches = logMatcher(exerciseId, exerciseName);
 
   // Walk back through sessions (newest first) until one has a completed
   // weighted set for this exercise. A session where the exercise was added
   // but skipped must not hide older logged data — real history always takes
   // precedence over profile-based estimates.
   const relevant = history
-    .filter(s => s.exercises.some(e => e.exerciseId === exerciseId))
+    .filter(s => s.exercises.some(matches))
     .sort((a, b) => b.startTime - a.startTime);
 
   for (const session of relevant) {
-    const lastEx = session.exercises.find(e => e.exerciseId === exerciseId);
+    const lastEx = session.exercises.find(matches);
     if (!lastEx) continue;
 
     const best = getBestSet(lastEx.sets);

@@ -288,7 +288,7 @@ export default function WorkoutScreen() {
       <div style={{ padding: '8px 12px 100px' }}>
         {session.exercises.map((ex, exIdx) => {
           const targetReps = ex.sets[0]?.reps ?? 10;
-          const suggestion = getSuggestedWeight(ex.exerciseId, targetReps, history, unit);
+          const suggestion = getSuggestedWeight(ex.exerciseId, targetReps, history, unit, ex.exerciseName);
           const profileSuggKg = !suggestion && profile
             ? getProfileSuggestion(ex.exerciseId, profile, history, targetReps)
             : null;
@@ -296,11 +296,13 @@ export default function WorkoutScreen() {
             ? (unit === 'lbs' ? Math.round(profileSuggKg * 2.20462 / 5) * 5 : profileSuggKg)
             : null;
           // Most recent session with completed sets for this exercise — skipped
-          // occurrences shouldn't blank out the PREV column
+          // occurrences shouldn't blank out the PREV column. Matches by ID or
+          // name so recreated/replaced exercises keep their old history.
+          const exName = ex.exerciseName.trim().toLowerCase();
           const lastLog = history
-            .filter(h => h.exercises.some(e => e.exerciseId === ex.exerciseId))
+            .filter(h => h.exercises.some(e => e.exerciseId === ex.exerciseId || e.exerciseName.trim().toLowerCase() === exName))
             .sort((a, b) => b.startTime - a.startTime)
-            .map(h => h.exercises.find(e => e.exerciseId === ex.exerciseId))
+            .map(h => h.exercises.find(e => e.exerciseId === ex.exerciseId || e.exerciseName.trim().toLowerCase() === exName))
             .find(log => log?.sets.some(s => s.completed && s.weight > 0));
           const isBarbell = allEx.find(a => a.id === ex.exerciseId)?.equipment === 'barbell';
           const calcWeight = ex.sets.find(s => !s.completed && s.weight > 0)?.weight
