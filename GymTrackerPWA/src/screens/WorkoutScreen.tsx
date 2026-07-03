@@ -295,10 +295,13 @@ export default function WorkoutScreen() {
           const profileWeight = profileSuggKg !== null
             ? (unit === 'lbs' ? Math.round(profileSuggKg * 2.20462 / 5) * 5 : profileSuggKg)
             : null;
-          // Most recent session that actually contains this exercise (not just history[0])
+          // Most recent session with completed sets for this exercise — skipped
+          // occurrences shouldn't blank out the PREV column
           const lastLog = history
-            .find(h => h.exercises.some(e => e.exerciseId === ex.exerciseId))
-            ?.exercises.find(e => e.exerciseId === ex.exerciseId);
+            .filter(h => h.exercises.some(e => e.exerciseId === ex.exerciseId))
+            .sort((a, b) => b.startTime - a.startTime)
+            .map(h => h.exercises.find(e => e.exerciseId === ex.exerciseId))
+            .find(log => log?.sets.some(s => s.completed && s.weight > 0));
           const isBarbell = allEx.find(a => a.id === ex.exerciseId)?.equipment === 'barbell';
           const calcWeight = ex.sets.find(s => !s.completed && s.weight > 0)?.weight
             ?? ex.sets.find(s => s.weight > 0)?.weight
