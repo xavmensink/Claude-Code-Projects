@@ -7,6 +7,14 @@ declare const self: ServiceWorkerGlobalScope;
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
+// Activate updated versions immediately instead of waiting for every open
+// instance of the app to close — without this, deployed fixes never reach
+// installed PWAs that are rarely fully closed.
+self.skipWaiting();
+self.addEventListener('activate', event => {
+  event.waitUntil(self.clients.claim());
+});
+
 // ── Web Push ──────────────────────────────────────────────────────────────────
 // Fired when a push arrives from the Cloudflare Worker (true background push).
 self.addEventListener('push', (event: PushEvent) => {
