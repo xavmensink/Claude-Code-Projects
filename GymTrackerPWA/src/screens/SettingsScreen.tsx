@@ -495,7 +495,7 @@ export default function SettingsScreen() {
         <div className="section-label" style={{ marginTop: 20 }}>Backup & Restore</div>
         <div className="card">
           <div style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.6, marginBottom: 14 }}>
-            Export a backup file and save it to your Files app or iCloud. Import it to restore everything if history is lost.
+            Export a backup file and save it to your Files app or iCloud. Importing merges the backup into what's already in the app — nothing you have now is deleted.
           </div>
 
           <button className="btn-primary" onClick={exportAllData} style={{ marginBottom: 10 }}>

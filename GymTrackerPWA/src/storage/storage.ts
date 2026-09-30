@@ -248,16 +248,32 @@ export function exportAllData(): void {
   URL.revokeObjectURL(url);
 }
 
+// Merge lists by key: everything already on the device is kept, and backup
+// entries are added (or replace the local entry with the same key). Importing
+// an older backup therefore never deletes newer templates, workouts or PRs.
+function mergeById<T>(local: T[], incoming: T[], key: (x: T) => string): T[] {
+  const map = new Map<string, T>();
+  for (const x of local) map.set(key(x), x);
+  for (const x of incoming) map.set(key(x), x);
+  return [...map.values()];
+}
+
 export function importAllData(jsonText: string): void {
   const d = JSON.parse(jsonText);
-  if (d.exercises && Array.isArray(d.exercises))  saveExercises(d.exercises);
-  if (d.templates && Array.isArray(d.templates))  set(KEYS.TEMPLATES,        d.templates);
-  if (d.history   && Array.isArray(d.history))    set(KEYS.HISTORY,          d.history);
-  if (d.settings  && typeof d.settings === 'object') set(KEYS.SETTINGS,      d.settings);
-  if (d.schedule  && typeof d.schedule === 'object') set(KEYS.SCHEDULE,      d.schedule);
-  if (d.prs       && Array.isArray(d.prs))        set(KEYS.PERSONAL_RECORDS, d.prs);
-  if (d.profile   && typeof d.profile === 'object') set(KEYS.PROFILE,        d.profile);
-  if (d.bodyweight && Array.isArray(d.bodyweight)) set(KEYS.BODYWEIGHT,      d.bodyweight);
+  if (Array.isArray(d.exercises)) saveExercises(mergeById(getExercises(), d.exercises, (e: Exercise) => e.id));
+  if (Array.isArray(d.templates)) set(KEYS.TEMPLATES, mergeById(getTemplates(), d.templates, (t: WorkoutTemplate) => t.id));
+  if (Array.isArray(d.history)) {
+    const merged = mergeById(getHistory(), d.history, (s: WorkoutSession) => s.id);
+    set(KEYS.HISTORY, merged.sort((a, b) => b.startTime - a.startTime));
+  }
+  if (Array.isArray(d.prs)) set(KEYS.PERSONAL_RECORDS, mergeById(getPRs(), d.prs, (p: PersonalRecord) => p.id));
+  if (Array.isArray(d.bodyweight)) {
+    const merged = mergeById(getBodyweightLog(), d.bodyweight, (b: BodyweightEntry) => String(b.date));
+    set(KEYS.BODYWEIGHT, merged.sort((a, b) => a.date - b.date));
+  }
+  if (d.settings && typeof d.settings === 'object') set(KEYS.SETTINGS, d.settings);
+  if (d.schedule && typeof d.schedule === 'object') set(KEYS.SCHEDULE, d.schedule);
+  if (d.profile  && typeof d.profile  === 'object') set(KEYS.PROFILE,  d.profile);
 }
 
 // ─── Seed ─────────────────────────────────────────────────────────────────────
