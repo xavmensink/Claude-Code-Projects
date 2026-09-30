@@ -568,6 +568,9 @@ export function migrateExercises(): void {
     { id: 'e163', name: 'Wrist Roller',                 muscleGroup: 'forearms',   equipment: 'bodyweight', secondaryMuscleGroups: [] },
     { id: 'e164', name: 'Behind-Back Wrist Curl',       muscleGroup: 'forearms',   equipment: 'barbell',    secondaryMuscleGroups: [] },
     { id: 'e165', name: 'Towel Pull-up',                muscleGroup: 'forearms',   equipment: 'bodyweight', secondaryMuscleGroups: ['back','biceps'] },
+    // Added for the Fundamentals body part split
+    { id: 'e166', name: 'Dumbbell Skull Crusher',       muscleGroup: 'triceps',    equipment: 'dumbbell',   secondaryMuscleGroups: [] },
+    { id: 'e167', name: 'Single-Arm Cable Curl',        muscleGroup: 'biceps',     equipment: 'cable',      secondaryMuscleGroups: ['forearms'] },
   ];
 
   // ── Apply secondaryMuscleGroups to existing exercises where missing ────────
@@ -658,5 +661,85 @@ export function seedJeffNippardTemplates(): void {
   const existingIds = new Set(existing.map(t => t.id));
   const toAdd = templates.filter(t => !existingIds.has(t.id));
   set(KEYS.TEMPLATES, [...existing, ...toAdd]);
+  localStorage.setItem(FLAG, '1');
+}
+
+// ─── Jeff Nippard Fundamentals — 5-day Body Part Split (Week 1) ──────────────
+
+export function seedJeffNippardSplitTemplates(): void {
+  const FLAG = 'gt_seeded_jn_split_v1';
+  if (localStorage.getItem(FLAG)) return;
+
+  const desc = 'Jeff Nippard — Fundamentals Body Part Split (Week 1)';
+  const templates: WorkoutTemplate[] = [
+    {
+      id: 'jn5_day1',
+      name: 'Day 1 — Chest & Triceps',
+      description: desc,
+      exercises: [
+        { exerciseId: 'e1',   exerciseName: 'Barbell Bench Press',     targetSets: 3, targetReps: 6  },
+        { exerciseId: 'e5',   exerciseName: 'Dumbbell Incline Press',  targetSets: 3, targetReps: 8  },
+        { exerciseId: 'e8',   exerciseName: 'Cable Fly',               targetSets: 3, targetReps: 12 },
+        { exerciseId: 'e58',  exerciseName: 'Assisted Dip',            targetSets: 3, targetReps: 10 },
+        { exerciseId: 'e166', exerciseName: 'Dumbbell Skull Crusher',  targetSets: 3, targetReps: 12 },
+      ],
+    },
+    {
+      id: 'jn5_day2',
+      name: 'Day 2 — Legs & Abs',
+      description: desc,
+      exercises: [
+        { exerciseId: 'e60', exerciseName: 'Back Squat',        targetSets: 3, targetReps: 6  },
+        { exerciseId: 'e70', exerciseName: 'Romanian Deadlift', targetSets: 3, targetReps: 8  },
+        { exerciseId: 'e76', exerciseName: 'Barbell Hip Thrust', targetSets: 3, targetReps: 12 },
+        { exerciseId: 'e64', exerciseName: 'Leg Extension',     targetSets: 3, targetReps: 12 },
+        { exerciseId: 'e72', exerciseName: 'Leg Curl',          targetSets: 3, targetReps: 12 },
+        { exerciseId: 'e82', exerciseName: 'Standing Calf Raise', targetSets: 2, targetReps: 8 },
+        { exerciseId: 'e88', exerciseName: 'Crunch',            targetSets: 2, targetReps: 12 },
+      ],
+    },
+    {
+      id: 'jn5_day3',
+      name: 'Day 3 — Back & Biceps',
+      description: desc,
+      exercises: [
+        { exerciseId: 'e23', exerciseName: 'Reverse Grip Lat Pulldown',   targetSets: 3, targetReps: 8  },
+        { exerciseId: 'e24', exerciseName: 'Cable Seated Row',            targetSets: 3, targetReps: 10 },
+        { exerciseId: 'e27', exerciseName: 'Chest-Supported T-Bar Row',   targetSets: 3, targetReps: 12 },
+        { exerciseId: 'e36', exerciseName: 'Seated Face Pull',            targetSets: 3, targetReps: 15 },
+        { exerciseId: 'e43', exerciseName: 'Dumbbell Supinated Curl',     targetSets: 3, targetReps: 12 },
+      ],
+    },
+    {
+      id: 'jn5_day4',
+      name: 'Day 4 — Legs & Abs',
+      description: desc,
+      exercises: [
+        { exerciseId: 'e14', exerciseName: 'Deadlift',                       targetSets: 3, targetReps: 5  },
+        { exerciseId: 'e66', exerciseName: 'Dumbbell Walking Lunge',         targetSets: 3, targetReps: 10 },
+        { exerciseId: 'e64', exerciseName: 'Single-Leg Leg Extension',       targetSets: 2, targetReps: 15 },
+        { exerciseId: 'e72', exerciseName: 'Single-Leg Lying Leg Curl',      targetSets: 2, targetReps: 15 },
+        { exerciseId: 'e79', exerciseName: 'Machine Seated Hip Abduction',   targetSets: 3, targetReps: 15 },
+        { exerciseId: 'e82', exerciseName: 'Standing Calf Raise',            targetSets: 2, targetReps: 12 },
+        { exerciseId: 'e87', exerciseName: 'Plank (20 sec)',                 targetSets: 3, targetReps: 20 },
+      ],
+    },
+    {
+      id: 'jn5_day5',
+      name: 'Day 5 — Shoulders & Arms',
+      description: desc,
+      exercises: [
+        { exerciseId: 'e28',  exerciseName: 'Military Press',                   targetSets: 3, targetReps: 6  },
+        { exerciseId: 'e31',  exerciseName: 'Dumbbell Lateral Raise',           targetSets: 3, targetReps: 12 },
+        { exerciseId: 'e37',  exerciseName: 'Cable Reverse Fly',                targetSets: 3, targetReps: 15 },
+        { exerciseId: 'e56',  exerciseName: 'Single-Arm Rope Tricep Extension', targetSets: 2, targetReps: 12 },
+        { exerciseId: 'e167', exerciseName: 'Single-Arm Cable Curl',            targetSets: 2, targetReps: 12 },
+      ],
+    },
+  ];
+
+  const existing = getTemplates();
+  const existingIds = new Set(existing.map(t => t.id));
+  set(KEYS.TEMPLATES, [...existing, ...templates.filter(t => !existingIds.has(t.id))]);
   localStorage.setItem(FLAG, '1');
 }
