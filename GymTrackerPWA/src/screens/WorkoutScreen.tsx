@@ -353,7 +353,7 @@ export default function WorkoutScreen() {
                     {h}
                     {h === unit.toUpperCase() && eqInfo && (
                       <div style={{ color: eqInfo.color, fontSize: 8, fontWeight: 700, marginTop: 1 }}>
-                        {eqInfo.label === 'Dumbbell' ? 'PER HAND' : eqInfo.label === 'Barbell' ? 'TOTAL' : eqInfo.label === 'Bodyweight' ? '+ADDED' : 'STACK'}
+                        {eqInfo.short}
                       </div>
                     )}
                   </div>
