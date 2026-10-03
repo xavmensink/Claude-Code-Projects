@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WorkoutTemplate, TemplateExercise, Exercise } from '../types';
 import { getTemplates, upsertTemplate, deleteTemplate, getExercises } from '../storage/storage';
+import { EQUIPMENT_INFO } from '../utils/equipment';
 import { generateId } from '../utils/helpers';
 
 export default function TemplatesScreen() {
@@ -165,7 +166,9 @@ function TemplateEditor({ template, onSave, onClose }: {
                 <div key={ex.id} onClick={() => handlePick(ex)}
                   style={{ padding: '12px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
                   <div style={{ fontWeight: 500 }}>{ex.name}</div>
-                  <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{ex.muscleGroup} · {ex.equipment}</div>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 2 }}>
+                    {EQUIPMENT_INFO[ex.equipment].icon} {EQUIPMENT_INFO[ex.equipment].label} ({EQUIPMENT_INFO[ex.equipment].hint}) · {ex.muscleGroup}
+                  </div>
                 </div>
               ))}
             </div>

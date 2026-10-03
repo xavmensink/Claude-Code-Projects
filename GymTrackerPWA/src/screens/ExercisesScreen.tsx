@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Exercise, MuscleGroup, Equipment } from '../types';
 import { getExercises, addExercise, deleteExercise, getExercisePRSummary, getSettings, getHistory } from '../storage/storage';
 import { generateId, formatDate } from '../utils/helpers';
+import { EQUIPMENT_INFO } from '../utils/equipment';
 
 const GROUPS: MuscleGroup[] = ['chest','back','shoulders','biceps','triceps','quads','hamstrings','glutes','calves','abs','forearms'];
 const EQUIP: Equipment[] = ['barbell','dumbbell','cable','machine','bodyweight'];
@@ -104,6 +105,7 @@ export default function ExercisesScreen() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<MuscleGroup | null>(null);
+  const [equipFilter, setEquipFilter] = useState<Equipment | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState('');
   const [muscle, setMuscle] = useState<MuscleGroup>('chest');
@@ -120,7 +122,8 @@ export default function ExercisesScreen() {
     const matchesSearch = e.name.toLowerCase().includes(search.toLowerCase());
     const matchesFilter = !filter || e.muscleGroup === filter ||
       (e.secondaryMuscleGroups ?? []).includes(filter);
-    return matchesSearch && matchesFilter;
+    const matchesEquip = !equipFilter || e.equipment === equipFilter;
+    return matchesSearch && matchesFilter && matchesEquip;
   });
 
   const toggleSecondary = (g: MuscleGroup) => {
@@ -173,6 +176,18 @@ export default function ExercisesScreen() {
           ))}
         </div>
 
+        <div className="chip-row" style={{ marginBottom: 12 }}>
+          <button className={`chip ${!equipFilter ? 'active' : ''}`} onClick={() => setEquipFilter(null)}>Any equipment</button>
+          {EQUIP.map(eq => (
+            <button key={eq} className={`chip ${equipFilter === eq ? 'active' : ''}`}
+              onClick={() => setEquipFilter(equipFilter === eq ? null : eq)}
+              style={equipFilter === eq ? { borderColor: EQUIPMENT_INFO[eq].color, color: EQUIPMENT_INFO[eq].color, background: EQUIPMENT_INFO[eq].color + '22' } : {}}
+            >
+              {EQUIPMENT_INFO[eq].icon} {EQUIPMENT_INFO[eq].label}
+            </button>
+          ))}
+        </div>
+
         {filtered.length === 0 && <div className="empty-state"><div className="empty-icon">🔍</div><div className="empty-title">No exercises found</div></div>}
 
         {filtered.map(ex => (
@@ -186,8 +201,8 @@ export default function ExercisesScreen() {
                 {(ex.secondaryMuscleGroups ?? []).map(g => (
                   <MuscleTag key={g} group={g} small />
                 ))}
-                <span style={{ color: 'var(--text-muted)', fontSize: 11, marginLeft: 2 }}>
-                  {EQUIP_ICON[ex.equipment]}
+                <span style={{ color: EQUIPMENT_INFO[ex.equipment].color, fontSize: 11, fontWeight: 600, marginLeft: 2 }}>
+                  {EQUIP_ICON[ex.equipment]} {EQUIPMENT_INFO[ex.equipment].label}
                 </span>
               </div>
             </div>
@@ -247,6 +262,7 @@ export default function ExercisesScreen() {
                     <div style={{ fontSize: 11, color: '#FFD700', fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase' }}>Best Weight</div>
                     <div style={{ fontSize: 20, fontWeight: 800, color: '#FFD700' }}>
                       {prSummary.weightPR.weight} {unit}
+                      <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,215,0,0.6)', marginLeft: 6 }}>{EQUIPMENT_INFO[selectedEx!.equipment].hint}</span>
                       <span style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,215,0,0.7)', marginLeft: 6 }}>
                         × {prSummary.weightPR.reps} reps
                       </span>

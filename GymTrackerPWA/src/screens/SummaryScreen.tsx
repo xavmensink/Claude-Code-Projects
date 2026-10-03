@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { WorkoutSession } from '../types';
 import { getPRs, getExercises, getSettings } from '../storage/storage';
+import { equipmentInfo } from '../utils/equipment';
 import { formatDate, formatDuration, totalVolume } from '../utils/helpers';
 
 const GROUP_COLOR: Record<string, string> = {
@@ -126,7 +127,13 @@ export default function SummaryScreen() {
             if (!done.length) return null;
             return (
               <div key={i} className="card" style={{ marginBottom: 8 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{ex.exerciseName}</div>
+                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
+                  {ex.exerciseName}
+                  {(() => {
+                    const eq = equipmentInfo(exMap.get(ex.exerciseId)?.equipment);
+                    return eq ? <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: eq.color }}>{eq.icon} {eq.label} · {eq.hint}</span> : null;
+                  })()}
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {done.map((set, si) => {
                     const isPR = sessionPRs.some(p => p.exerciseId === ex.exerciseId && p.weight === set.weight && p.reps === set.reps);

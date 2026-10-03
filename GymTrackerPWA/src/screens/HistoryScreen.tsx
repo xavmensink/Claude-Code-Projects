@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { WorkoutSession } from '../types';
-import { getHistory, deleteSession, saveSession, getPRs, getSettings } from '../storage/storage';
+import { getHistory, deleteSession, saveSession, getPRs, getSettings, getExercises } from '../storage/storage';
+import { equipmentInfo } from '../utils/equipment';
 import { formatDate, formatDuration, totalVolume } from '../utils/helpers';
 import { isPR } from '../utils/progressiveOverload';
 
@@ -19,6 +20,7 @@ export default function HistoryScreen() {
   const [selected, setSelected] = useState<WorkoutSession | null>(null);
   const [draft, setDraft] = useState<WorkoutSession | null>(null); // non-null = edit mode
   const [unit] = useState(() => getSettings().weightUnit);
+  const [exDefs] = useState(() => getExercises());
 
   const load = () => setHistory(getHistory());
   useEffect(load, []);
@@ -114,7 +116,13 @@ export default function HistoryScreen() {
             const completedSets = ex.sets.filter(s => s.completed);
             return (
               <div key={i} className="card">
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>{ex.exerciseName}</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>
+                  {ex.exerciseName}
+                  {(() => {
+                    const eq = equipmentInfo((exDefs.find(d => d.id === ex.exerciseId) ?? exDefs.find(d => d.name.toLowerCase() === ex.exerciseName.trim().toLowerCase()))?.equipment);
+                    return eq ? <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: eq.color }}>{eq.icon} {eq.label} · {eq.hint}</span> : null;
+                  })()}
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 1fr 28px', gap: 4, marginBottom: 6 }}>
                   {['Set','Weight','Reps','RPE','PR'].map(h => (
                     <div key={h} style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 700, textAlign: 'center' }}>{h}</div>

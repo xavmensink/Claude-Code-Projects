@@ -3,10 +3,23 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { WorkoutSession, ExerciseLog, SetLog, WorkoutTemplate, Exercise, PersonalRecord } from '../types';
 import { getHistory, saveSession, getSettings, getExercises, checkForNewPRs, deletePRs, getProfile } from '../storage/storage';
 import { useWorkout } from '../context/WorkoutContext';
+import { equipmentInfo, EQUIPMENT_INFO, EquipmentInfo } from '../utils/equipment';
 import { getSuggestedWeight } from '../utils/progressiveOverload';
 import { getProfileSuggestion } from '../utils/strengthStandards';
 import { generateId, formatStopwatch } from '../utils/helpers';
 import PRCelebration from '../components/PRCelebration';
+
+function EquipmentBadge({ info }: { info: EquipmentInfo }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 3,
+      background: info.color + '22', border: `1px solid ${info.color}66`, color: info.color,
+      borderRadius: 6, padding: '1px 7px', fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap',
+    }}>
+      {info.icon} {info.label} · {info.hint}
+    </span>
+  );
+}
 
 function rpeColor(rpe: number) {
   if (rpe <= 6) return 'var(--success)';
@@ -304,14 +317,20 @@ export default function WorkoutScreen() {
             .sort((a, b) => b.startTime - a.startTime)
             .map(h => h.exercises.find(e => e.exerciseId === ex.exerciseId || e.exerciseName.trim().toLowerCase() === exName))
             .find(log => log?.sets.some(s => s.completed && s.weight > 0));
-          const isBarbell = allEx.find(a => a.id === ex.exerciseId)?.equipment === 'barbell';
+          const exDef = allEx.find(a => a.id === ex.exerciseId)
+            ?? allEx.find(a => a.name.trim().toLowerCase() === exName);
+          const eqInfo = equipmentInfo(exDef?.equipment);
+          const isBarbell = exDef?.equipment === 'barbell';
           const calcWeight = ex.sets.find(s => !s.completed && s.weight > 0)?.weight
             ?? ex.sets.find(s => s.weight > 0)?.weight
             ?? suggestion?.weight ?? profileWeight ?? 0;
           return (
             <div key={exIdx} className="card" style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>{ex.exerciseName}</div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{ex.exerciseName}</div>
+                  {eqInfo && <EquipmentBadge info={eqInfo} />}
+                </div>
                 <div style={{ display: 'flex', gap: 4 }}>
                   {isBarbell && (
                     <button onClick={() => setPlateCalc(calcWeight)} title="Plate calculator"
@@ -330,7 +349,14 @@ export default function WorkoutScreen() {
               {/* Column headers */}
               <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 1fr 44px 38px', gap: 4, marginBottom: 4 }}>
                 {['SET','PREV',unit.toUpperCase(),'REPS','RPE','✓'].map(h => (
-                  <div key={h} style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 700, textAlign: 'center' }}>{h}</div>
+                  <div key={h} style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 700, textAlign: 'center' }}>
+                    {h}
+                    {h === unit.toUpperCase() && eqInfo && (
+                      <div style={{ color: eqInfo.color, fontSize: 8, fontWeight: 700, marginTop: 1 }}>
+                        {eqInfo.label === 'Dumbbell' ? 'PER HAND' : eqInfo.label === 'Barbell' ? 'TOTAL' : eqInfo.label === 'Bodyweight' ? '+ADDED' : 'STACK'}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
 
@@ -430,7 +456,9 @@ export default function WorkoutScreen() {
               {allEx.filter(e => e.name.toLowerCase().includes(pickerSearch.toLowerCase())).map(ex => (
                 <div key={ex.id} onClick={() => handlePickerSelect(ex)} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
                   <div style={{ fontWeight: 500 }}>{ex.name}</div>
-                  <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{ex.muscleGroup} · {ex.equipment}</div>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                    <EquipmentBadge info={EQUIPMENT_INFO[ex.equipment]} /> {ex.muscleGroup}
+                  </div>
                 </div>
               ))}
             </div>
