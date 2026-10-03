@@ -1,5 +1,4 @@
 import { WorkoutSession, UserProfile } from '../types';
-import { getExercises } from '../storage/storage';
 
 export type StrengthTier = 'beginner' | 'novice' | 'intermediate' | 'advanced' | 'elite';
 
@@ -10,8 +9,7 @@ export interface StrengthProfile {
 }
 
 // Intermediate 1RM as a fraction of bodyweight for a male aged 25–34.
-// Dumbbell values below are per hand; they are doubled in getIntermediateStandard
-// because dumbbell weights are logged as the combined weight of both.
+// Dumbbell values are the weight of a single dumbbell (as logged).
 // Bodyweight-only exercises are omitted (0 means skip).
 const STANDARD_MALE: Record<string, number> = {
   // Chest
@@ -75,21 +73,11 @@ export function getAgeFactor(age: number): number {
  * Returns the expected intermediate 1RM (kg) for the given exercise and user
  * profile, or null if the exercise is not in the database.
  */
-// IDs of dumbbell exercises, cached per assessment so history loops don't
-// re-parse the exercise list for every set.
-let dumbbellIds: Set<string> | null = null;
-function refreshDumbbellIds(): Set<string> {
-  dumbbellIds = new Set(getExercises().filter(e => e.equipment === 'dumbbell').map(e => e.id));
-  return dumbbellIds;
-}
-
 export function getIntermediateStandard(
   exerciseId: string,
   profile: UserProfile,
 ): number | null {
-  const rawMultiplier = STANDARD_MALE[exerciseId];
-  const multiplier = rawMultiplier === undefined ? undefined
-    : rawMultiplier * ((dumbbellIds ?? refreshDumbbellIds()).has(exerciseId) ? 2 : 1);
+  const multiplier = STANDARD_MALE[exerciseId];
   if (multiplier === undefined || multiplier === 0) return null;
 
   const sexFactor = profile.sex === 'female' ? 0.60 : 1.0;
@@ -108,7 +96,6 @@ export function computeStrengthProfile(
   history: WorkoutSession[],
   profile: UserProfile,
 ): StrengthProfile | null {
-  refreshDumbbellIds();
   const ratios: number[] = [];
   const assessedIds = new Set<string>();
 

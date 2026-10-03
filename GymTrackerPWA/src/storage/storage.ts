@@ -226,7 +226,7 @@ export function logBodyweight(weightKg: number): void {
 
 export function exportAllData(): void {
   const payload = {
-    version: 4,
+    version: 5,
     exportedAt: Date.now(),
     exercises:  getExercises(),
     templates:  getTemplates(),
@@ -248,6 +248,45 @@ export function exportAllData(): void {
   URL.revokeObjectURL(url);
 }
 
+// ─── Dumbbell weight: combined → per dumbbell ────────────────────────────────
+// Dumbbell weights used to be logged as the combined weight of both. They are
+// now logged per dumbbell, so older data is halved once. Backups exported
+// before this change (version < 5) are converted the same way on import.
+
+const half = (w: number) => Math.round((w / 2) * 100) / 100;
+
+function dumbbellMatcher(exercises: Exercise[]) {
+  const byId = new Map(exercises.map(e => [e.id, e]));
+  const byName = new Map(exercises.map(e => [e.name.trim().toLowerCase(), e]));
+  return (exerciseId: string, exerciseName: string) =>
+    (byId.get(exerciseId) ?? byName.get(exerciseName.trim().toLowerCase()))?.equipment === 'dumbbell';
+}
+
+function halveDumbbellSession(s: WorkoutSession, isDumbbell: (id: string, name: string) => boolean): WorkoutSession {
+  return {
+    ...s,
+    exercises: s.exercises.map(ex => !isDumbbell(ex.exerciseId, ex.exerciseName) ? ex : {
+      ...ex,
+      sets: ex.sets.map(set => ({ ...set, weight: half(set.weight) })),
+    }),
+  };
+}
+
+function halveDumbbellPRs(prs: PersonalRecord[], isDumbbell: (id: string, name: string) => boolean): PersonalRecord[] {
+  return prs.map(p => isDumbbell(p.exerciseId, p.exerciseName) ? { ...p, weight: half(p.weight) } : p);
+}
+
+export function migrateDumbbellToPerHand(): void {
+  const FLAG = 'gt_migrated_db_perhand_v1';
+  if (localStorage.getItem(FLAG)) return;
+  const isDb = dumbbellMatcher(getExercises());
+  set(KEYS.HISTORY, getHistory().map(s => halveDumbbellSession(s, isDb)));
+  set(KEYS.PERSONAL_RECORDS, halveDumbbellPRs(getPRs(), isDb));
+  const active = getActiveWorkout();
+  if (active) setActiveWorkout(halveDumbbellSession(active, isDb));
+  localStorage.setItem(FLAG, '1');
+}
+
 // Merge lists by key: everything already on the device is kept, and backup
 // entries are added (or replace the local entry with the same key). Importing
 // an older backup therefore never deletes newer templates, workouts or PRs.
@@ -262,6 +301,11 @@ export function importAllData(jsonText: string): void {
   const d = JSON.parse(jsonText);
   if (Array.isArray(d.exercises)) saveExercises(mergeById(getExercises(), d.exercises, (e: Exercise) => e.id));
   if (Array.isArray(d.templates)) set(KEYS.TEMPLATES, mergeById(getTemplates(), d.templates, (t: WorkoutTemplate) => t.id));
+  // Backups older than v5 hold combined dumbbell weights — convert them first
+  const legacy = (d.version ?? 0) < 5;
+  const isDb = dumbbellMatcher(getExercises());
+  if (legacy && Array.isArray(d.history)) d.history = d.history.map((s: WorkoutSession) => halveDumbbellSession(s, isDb));
+  if (legacy && Array.isArray(d.prs)) d.prs = halveDumbbellPRs(d.prs, isDb);
   if (Array.isArray(d.history)) {
     const merged = mergeById(getHistory(), d.history, (s: WorkoutSession) => s.id);
     set(KEYS.HISTORY, merged.sort((a, b) => b.startTime - a.startTime));

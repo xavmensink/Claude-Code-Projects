@@ -10,7 +10,7 @@ export interface EquipmentInfo {
 
 export const EQUIPMENT_INFO: Record<Equipment, EquipmentInfo> = {
   barbell:    { label: 'Barbell',    short: 'TOTAL',   hint: 'total load incl. bar', icon: '🏋️', color: '#e94560' },
-  dumbbell:   { label: 'Dumbbell',   short: 'BOTH',    hint: 'both combined',       icon: '💪', color: '#2196F3' },
+  dumbbell:   { label: 'Dumbbell',   short: 'EACH',    hint: 'single dumbbell weight', icon: '💪', color: '#2196F3' },
   cable:      { label: 'Cable',      short: 'STACK',   hint: 'stack weight',         icon: '🔗', color: '#FF9800' },
   machine:    { label: 'Machine',    short: 'STACK',   hint: 'stack / plate weight', icon: '⚙️', color: '#4CAF50' },
   bodyweight: { label: 'Bodyweight', short: 'ADDED',   hint: 'added weight, 0 = bodyweight', icon: '🤸', color: '#9C27B0' },

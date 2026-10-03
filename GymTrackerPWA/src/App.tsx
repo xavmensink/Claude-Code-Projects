@@ -11,7 +11,7 @@ import SummaryScreen from './screens/SummaryScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import VolumeScreen from './screens/VolumeScreen';
 import SettingsScreen from './screens/SettingsScreen';
-import { seedIfEmpty, migrateExercises, seedJeffNippardTemplates, seedJeffNippardSplitTemplates } from './storage/storage';
+import { seedIfEmpty, migrateExercises, seedJeffNippardTemplates, seedJeffNippardSplitTemplates, migrateDumbbellToPerHand } from './storage/storage';
 
 function AppInner() {
   return (
@@ -39,7 +39,7 @@ export default function App() {
     // Ask iOS/Safari to mark this origin's storage as persistent so it isn't
     // evicted silently when the service worker updates or storage is low.
     navigator.storage?.persist?.();
-    seedIfEmpty(); migrateExercises(); seedJeffNippardTemplates(); seedJeffNippardSplitTemplates();
+    seedIfEmpty(); migrateExercises(); migrateDumbbellToPerHand(); seedJeffNippardTemplates(); seedJeffNippardSplitTemplates();
   }, []);
 
   return (
