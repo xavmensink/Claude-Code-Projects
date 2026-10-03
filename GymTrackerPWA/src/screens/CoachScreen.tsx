@@ -5,7 +5,7 @@ import { getPlan, savePlan, clearPlan, getExercises, getTemplates, getHistory, g
 import { useWorkout } from '../context/WorkoutContext';
 import { buildWeeklyExport, weeklyExportFilename } from '../utils/weeklyExport';
 import { parsePlanText, ParseResult, isPlanFresh, formatPlannedSets, plannedRpeLabel } from '../utils/weeklyPlan';
-import { COACH_PROMPT } from '../utils/coachPrompt';
+import { COACH_PROMPT, COACH_SETUP_PROMPT } from '../utils/coachPrompt';
 import { copyText, downloadText } from '../utils/helpers';
 
 const stepTitle = { fontWeight: 700, fontSize: 13, marginBottom: 6, color: 'var(--accent)' } as const;
@@ -32,6 +32,7 @@ export default function CoachScreen() {
   const say = (msg: string) => { setFlash(msg); setTimeout(() => setFlash(''), 2500); };
 
   const copyExport = async () => say(await copyText(exportJson) ? '✓ Export copied — paste it into Claude' : '✗ Copy failed — use Download instead');
+  const copySetupPrompt = async () => say(await copyText(COACH_SETUP_PROMPT) ? '✓ Setup prompt copied — paste it into Claude, then attach your backup' : '✗ Copy failed');
   const copyPrompt = async () => say(await copyText(COACH_PROMPT) ? '✓ Prompt copied — paste it into Claude first' : '✗ Copy failed');
   const download = () => { downloadText(weeklyExportFilename(), exportJson); say('✓ Export file downloaded'); };
 
@@ -84,6 +85,25 @@ export default function CoachScreen() {
         <div style={{ ...mutedText, marginBottom: 14 }}>
           Once a week, send Claude your results and get next week's exact weights and reps back. Claude can vary reps and loads set by set, which the built-in estimate can't.
         </div>
+
+        {/* ── One-time setup ── */}
+        {!plan && (
+          <div className="card" style={{ marginBottom: 16, border: '1px solid var(--accent)' }}>
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>First time? Start here</div>
+            <div style={{ ...mutedText, marginBottom: 10 }}>
+              Build your first plan from your whole history: (1) Settings → Export Backup and save the file. (2) Copy the setup prompt below, paste it into a new Claude chat and attach the backup file. (3) Copy Claude's reply into step 3 here. After that, use the weekly steps.
+            </div>
+            <button className="btn-primary" onClick={copySetupPrompt}>📋 Copy one-time setup prompt</button>
+            <details>
+              <summary style={{ color: 'var(--text-secondary)', fontSize: 13, cursor: 'pointer', padding: '8px 0 0' }}>Show setup prompt</summary>
+              <pre style={{
+                whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 11, lineHeight: 1.5,
+                color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.04)',
+                border: '1px solid var(--border)', borderRadius: 8, padding: 10, margin: '6px 0 0', maxHeight: 260, overflowY: 'auto',
+              }}>{COACH_SETUP_PROMPT}</pre>
+            </details>
+          </div>
+        )}
 
         {/* ── Step 1: Export ── */}
         <div className="section-label">1 · Export your week</div>
