@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { WorkoutSession, ExerciseLog, SetLog, WorkoutTemplate, Exercise, PersonalRecord } from '../types';
-import { getHistory, saveSession, getSettings, getExercises, checkForNewPRs, deletePRs, getProfile } from '../storage/storage';
+import { WorkoutSession, ExerciseLog, SetLog, WorkoutTemplate, Exercise, PersonalRecord, PlannedWorkout } from '../types';
+import { getHistory, saveSession, getSettings, getExercises, checkForNewPRs, deletePRs, getProfile, getPlan } from '../storage/storage';
 import { useWorkout } from '../context/WorkoutContext';
 import { equipmentInfo, EQUIPMENT_INFO, EquipmentInfo } from '../utils/equipment';
 import { getSuggestedWeight } from '../utils/progressiveOverload';
+import { isPlanFresh, planWorkoutFor, planExerciseFor, plannedSetsToLogs, formatPlannedSets, plannedRpeLabel } from '../utils/weeklyPlan';
 import { getProfileSuggestion } from '../utils/strengthStandards';
 import { generateId, formatStopwatch } from '../utils/helpers';
 import PRCelebration from '../components/PRCelebration';
@@ -139,6 +140,8 @@ export default function WorkoutScreen() {
   const [history] = useState(() => getHistory());
   const [unit] = useState(() => getSettings().weightUnit);
   const [profile] = useState(() => getProfile());
+  // Imported Claude plan — only used while it's current (within two weeks)
+  const [plan] = useState(() => { const p = getPlan(); return p && isPlanFresh(p) ? p : null; });
   const [showPicker, setShowPicker] = useState(false);
   const [allEx] = useState<Exercise[]>(() => getExercises());
   const [pickerSearch, setPickerSearch] = useState('');
@@ -149,10 +152,25 @@ export default function WorkoutScreen() {
   const prIdsBySet = useRef<Map<string, string[]>>(new Map());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Start from template if navigated with state
+  // Start from a plan workout (Coach screen) or a template (Home / Templates)
   useEffect(() => {
-    const tmpl = (location.state as { template?: WorkoutTemplate } | null)?.template;
-    if (tmpl && !activeWorkout) {
+    const state = location.state as { template?: WorkoutTemplate; planWorkout?: PlannedWorkout } | null;
+    const tmpl = state?.template;
+    const pw = state?.planWorkout;
+    if (activeWorkout) return;
+
+    // Prefer the imported plan's prescription when one exists for this template
+    const planned = pw ?? (tmpl ? planWorkoutFor(plan, tmpl.id, tmpl.name) : null);
+
+    if (planned) {
+      const s: WorkoutSession = {
+        id: generateId(), templateId: planned.templateId ?? tmpl?.id, name: planned.name, startTime: Date.now(),
+        exercises: planned.exercises.map(pe => ({
+          exerciseId: pe.exerciseId, exerciseName: pe.exerciseName, sets: plannedSetsToLogs(pe.sets),
+        })),
+      };
+      setWorkout(s); setSession(s);
+    } else if (tmpl) {
       const s: WorkoutSession = {
         id: generateId(), templateId: tmpl.id, name: tmpl.name, startTime: Date.now(),
         exercises: tmpl.exercises.map(te => ({
@@ -163,7 +181,7 @@ export default function WorkoutScreen() {
         })),
       };
       setWorkout(s); setSession(s);
-    } else if (!tmpl && !activeWorkout && location.state !== null) {
+    } else if (location.state !== null) {
       startEmpty();
     }
   }, []);
@@ -237,7 +255,11 @@ export default function WorkoutScreen() {
 
   const addExercise = (ex: Exercise) => {
     if (!session) return;
-    const newEx: ExerciseLog = { exerciseId: ex.id, exerciseName: ex.name, sets: [{ id: generateId(), weight: 0, reps: 10, completed: false, timestamp: Date.now() }] };
+    const pe = planExerciseFor(plan, ex.id, ex.name, session.templateId, session.name);
+    const newEx: ExerciseLog = {
+      exerciseId: ex.id, exerciseName: ex.name,
+      sets: pe ? plannedSetsToLogs(pe.sets) : [{ id: generateId(), weight: 0, reps: 10, completed: false, timestamp: Date.now() }],
+    };
     update({ ...session, exercises: [...session.exercises, newEx] });
     setShowPicker(false); setPickerFor(null); setPickerSearch('');
   };
@@ -246,10 +268,13 @@ export default function WorkoutScreen() {
     if (!session) return;
     const exercises = session.exercises.map((ex, i) => {
       if (i !== exIdx) return ex;
+      const pe = planExerciseFor(plan, newEx.id, newEx.name, session.templateId, session.name);
       return {
         exerciseId: newEx.id,
         exerciseName: newEx.name,
-        sets: ex.sets.map(s => ({ ...s, id: generateId(), weight: 0, completed: false, rpe: undefined })),
+        sets: pe
+          ? plannedSetsToLogs(pe.sets)
+          : ex.sets.map(s => ({ ...s, id: generateId(), weight: 0, completed: false, rpe: undefined })),
       };
     });
     update({ ...session, exercises });
@@ -301,8 +326,10 @@ export default function WorkoutScreen() {
       <div style={{ padding: '8px 12px 100px' }}>
         {session.exercises.map((ex, exIdx) => {
           const targetReps = ex.sets[0]?.reps ?? 10;
-          const suggestion = getSuggestedWeight(ex.exerciseId, targetReps, history, unit, ex.exerciseName);
-          const profileSuggKg = !suggestion && profile
+          const planEx = planExerciseFor(plan, ex.exerciseId, ex.exerciseName, session.templateId, session.name);
+          // The plan replaces the auto estimate; the estimate only covers exercises outside the plan
+          const suggestion = planEx ? null : getSuggestedWeight(ex.exerciseId, targetReps, history, unit, ex.exerciseName);
+          const profileSuggKg = !suggestion && !planEx && profile
             ? getProfileSuggestion(ex.exerciseId, profile, history, targetReps)
             : null;
           const profileWeight = profileSuggKg !== null
@@ -346,6 +373,15 @@ export default function WorkoutScreen() {
                 </div>
               </div>
 
+              {planEx && (
+                <div style={{ fontSize: 12, marginBottom: 10, padding: '6px 8px', borderRadius: 8, background: 'var(--accent-dim)' }}>
+                  <div style={{ color: 'var(--accent)', fontWeight: 700 }}>
+                    📋 Plan: {formatPlannedSets(planEx.sets)} {unit}{plannedRpeLabel(planEx.sets) ? ` · ${plannedRpeLabel(planEx.sets)}` : ''}
+                  </div>
+                  {planEx.note && <div style={{ color: 'var(--text-secondary)', marginTop: 2, lineHeight: 1.4 }}>{planEx.note}</div>}
+                </div>
+              )}
+
               {/* Column headers */}
               <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 1fr 44px 38px', gap: 4, marginBottom: 4 }}>
                 {['SET','PREV',unit.toUpperCase(),'REPS','RPE','✓'].map(h => (
@@ -383,14 +419,14 @@ export default function WorkoutScreen() {
                     <input type="number" className="input"
                       value={set.weight > 0 ? set.weight : ''}
                       onChange={e => updateSetField(exIdx, setIdx, 'weight', e.target.value)}
-                      placeholder={suggestion ? String(suggestion.weight) : profileWeight !== null ? String(profileWeight) : '0'}
+                      placeholder={planEx ? String(planEx.sets[Math.min(setIdx, planEx.sets.length - 1)].weight) : suggestion ? String(suggestion.weight) : profileWeight !== null ? String(profileWeight) : '0'}
                       disabled={set.completed}
                       style={{ textAlign: 'center', padding: '8px 4px', fontSize: 14 }}
                     />
                     <input type="number" className="input"
                       value={set.reps > 0 ? set.reps : ''}
                       onChange={e => updateSetField(exIdx, setIdx, 'reps', e.target.value)}
-                      placeholder="0"
+                      placeholder={planEx ? String(planEx.sets[Math.min(setIdx, planEx.sets.length - 1)].reps) : '0'}
                       disabled={set.completed}
                       style={{ textAlign: 'center', padding: '8px 4px', fontSize: 14 }}
                     />
@@ -421,7 +457,7 @@ export default function WorkoutScreen() {
 
               {suggestion ? (
                 <div style={{ fontSize: 12, marginTop: 4, color: suggestion.direction === 'increase' ? 'var(--success)' : suggestion.direction === 'decrease' ? 'var(--danger)' : 'var(--text-secondary)' }}>
-                  {suggestion.direction === 'increase' ? '↑' : suggestion.direction === 'decrease' ? '↓' : '→'} Suggested: {suggestion.weight}{unit}
+                  {suggestion.direction === 'increase' ? '↑' : suggestion.direction === 'decrease' ? '↓' : '→'} Auto-suggested: {suggestion.weight}{unit}
                 </div>
               ) : profileWeight !== null ? (
                 <div style={{ fontSize: 12, marginTop: 4, color: 'var(--text-muted)' }}>

@@ -1,4 +1,4 @@
-import { Exercise, MuscleGroup, WorkoutTemplate, WorkoutSession, AppSettings, WeekSchedule, PersonalRecord, UserProfile, BodyweightEntry } from '../types';
+import { Exercise, MuscleGroup, WorkoutTemplate, WorkoutSession, AppSettings, WeekSchedule, PersonalRecord, UserProfile, BodyweightEntry, WeeklyPlan } from '../types';
 import { generateId } from '../utils/helpers';
 
 const KEYS = {
@@ -11,6 +11,7 @@ const KEYS = {
   PERSONAL_RECORDS: 'gt_prs',
   PROFILE: 'gt_profile',
   BODYWEIGHT: 'gt_bodyweight',
+  PLAN: 'gt_plan',
 };
 
 function get<T>(key: string): T | null {
@@ -203,6 +204,20 @@ export function saveProfile(profile: UserProfile): void {
   set(KEYS.PROFILE, profile);
 }
 
+// ─── Weekly Plan ──────────────────────────────────────────────────────────────
+
+export function getPlan(): WeeklyPlan | null {
+  return get<WeeklyPlan>(KEYS.PLAN);
+}
+
+export function savePlan(plan: WeeklyPlan): void {
+  set(KEYS.PLAN, plan);
+}
+
+export function clearPlan(): void {
+  localStorage.removeItem(KEYS.PLAN);
+}
+
 // ─── Bodyweight Log ───────────────────────────────────────────────────────────
 
 export function getBodyweightLog(): BodyweightEntry[] {
@@ -236,6 +251,7 @@ export function exportAllData(): void {
     prs:        getPRs(),
     profile:    getProfile(),
     bodyweight: getBodyweightLog(),
+    plan:       getPlan(),
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
@@ -318,6 +334,7 @@ export function importAllData(jsonText: string): void {
   if (d.settings && typeof d.settings === 'object') set(KEYS.SETTINGS, d.settings);
   if (d.schedule && typeof d.schedule === 'object') set(KEYS.SCHEDULE, d.schedule);
   if (d.profile  && typeof d.profile  === 'object') set(KEYS.PROFILE,  d.profile);
+  if (d.plan     && typeof d.plan     === 'object') set(KEYS.PLAN,     d.plan);
 }
 
 // ─── Seed ─────────────────────────────────────────────────────────────────────

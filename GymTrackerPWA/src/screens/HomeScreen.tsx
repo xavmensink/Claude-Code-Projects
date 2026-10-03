@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WorkoutTemplate, WorkoutSession, WeekSchedule } from '../types';
-import { getTemplates, getHistory, getSchedule, setScheduledDay, clearScheduledDay, getSettings } from '../storage/storage';
+import { getTemplates, getHistory, getSchedule, setScheduledDay, clearScheduledDay, getSettings, getPlan } from '../storage/storage';
+import { isPlanFresh } from '../utils/weeklyPlan';
 import { formatDate, formatDuration, totalVolume } from '../utils/helpers';
 import { useWorkout } from '../context/WorkoutContext';
 
@@ -28,6 +29,7 @@ export default function HomeScreen() {
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
   const [history, setHistory] = useState<WorkoutSession[]>([]);
   const [schedule, setSchedule] = useState<WeekSchedule>({});
+  const [plan, setPlan] = useState(getPlan);
   const [showScheduler, setShowScheduler] = useState<0|1|2|3|4|5|6 | null>(null);
   const [unit] = useState(() => getSettings().weightUnit);
   const navigate = useNavigate();
@@ -37,6 +39,7 @@ export default function HomeScreen() {
     setTemplates(getTemplates());
     setHistory(getHistory());
     setSchedule(getSchedule());
+    setPlan(getPlan());
   };
 
   useEffect(load, []);
@@ -103,6 +106,23 @@ export default function HomeScreen() {
             🏋️ Start Empty Workout
           </button>
         )}
+      </div>
+
+      {/* Weekly coach */}
+      <div style={{ margin: '0 16px 16px' }}>
+        <button onClick={() => navigate('/coach')} className="card" style={{
+          width: '100%', textAlign: 'left', cursor: 'pointer', display: 'block', margin: 0,
+          border: `1px solid ${plan && isPlanFresh(plan) ? 'var(--accent)' : 'var(--border)'}`,
+        }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>🧠 Weekly Coach</div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 3, lineHeight: 1.5 }}>
+            {plan
+              ? isPlanFresh(plan)
+                ? `Plan loaded${plan.weekStart ? ` for week of ${plan.weekStart}` : ''} · ${plan.workouts.length} workouts`
+                : 'Your plan is over 2 weeks old — export this week to get a new one'
+              : "Export your week, let Claude plan the next one, import it back"}
+          </div>
+        </button>
       </div>
 
       {/* ── Weekly Schedule ─────────────────────────────────────── */}

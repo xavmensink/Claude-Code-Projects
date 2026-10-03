@@ -83,3 +83,30 @@ export interface ScheduledDay {
 
 // Keys 0–6 map to Sun–Sat (JS Date.getDay())
 export type WeekSchedule = Partial<Record<0|1|2|3|4|5|6, ScheduledDay>>;
+
+// ── Weekly plan (imported from a Claude coaching reply) ──────────────────────
+export interface PlannedSet {
+  weight: number;
+  reps: number;
+  rpe?: number;
+}
+
+export interface PlannedExercise {
+  exerciseId: string;
+  exerciseName: string;
+  sets: PlannedSet[];
+  note?: string;
+}
+
+export interface PlannedWorkout {
+  templateId?: string;
+  name: string;
+  exercises: PlannedExercise[];
+}
+
+export interface WeeklyPlan {
+  weekStart?: string;   // YYYY-MM-DD, as supplied by Claude
+  summary?: string;
+  importedAt: number;
+  workouts: PlannedWorkout[];
+}

@@ -11,6 +11,7 @@ import SummaryScreen from './screens/SummaryScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import VolumeScreen from './screens/VolumeScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import CoachScreen from './screens/CoachScreen';
 import { seedIfEmpty, migrateExercises, seedJeffNippardTemplates, seedJeffNippardSplitTemplates, migrateDumbbellToPerHand } from './storage/storage';
 
 function AppInner() {
@@ -26,6 +27,7 @@ function AppInner() {
           <Route path="/history"         element={<HistoryScreen />} />
           <Route path="/volume"    element={<VolumeScreen />} />
           <Route path="/settings"  element={<SettingsScreen />} />
+          <Route path="/coach"     element={<CoachScreen />} />
         </Routes>
       </div>
       <RestTimerBanner />
