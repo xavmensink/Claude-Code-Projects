@@ -691,6 +691,7 @@ export function migrateExercises(): void {
     { id: 'e207', name: 'Cable Woodchopper', muscleGroup: 'abs', equipment: 'cable', secondaryMuscleGroups: ['shoulders'] },
     { id: 'e208', name: 'Dumbbell Wrist Curl', muscleGroup: 'forearms', equipment: 'dumbbell', secondaryMuscleGroups: [] },
     { id: 'e209', name: 'Dumbbell Reverse Wrist Curl', muscleGroup: 'forearms', equipment: 'dumbbell', secondaryMuscleGroups: [] },
+    { id: 'e210', name: 'Chest-Supported Dumbbell Row', muscleGroup: 'back', equipment: 'dumbbell', secondaryMuscleGroups: ['biceps'] },
   ];
 
   // ── Apply secondaryMuscleGroups to existing exercises where missing ────────
